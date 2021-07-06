@@ -24,7 +24,8 @@ docker run -it --rm -v $DATAPATH:/data -v $DATAPATH/derivatives:/out  poldrackla
 
 ## Using the container
 All python scripts can be executed using the docker container. You can also
-run all the scripts locally if you install all necessary packages (see requirements.txt),
+run all the scripts locally if you install all necessary packages (see requirements.txt)
+and change the paths in the scripts.
 
 To pull the container:
 ```
