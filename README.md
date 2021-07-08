@@ -1,7 +1,7 @@
 
 # Code for Coll et al., The neural signature of the decision value of future pain
 
-You can execute the line below to reproduce all analyses/figures in the manuscript. The BIDS formatted data root folder is the $DATAPATH folder and this repository is the $CODEPATH folder.
+You can execute the code below to reproduce all analyses/figures in the manuscript. The BIDS formatted data root folder is the $DATAPATH folder and this repository is the $CODEPATH folder.
 
 The system parameters (e.g. number of cpus) should be changed in each script. Bootstrapping/permuting can take a long time.
 
