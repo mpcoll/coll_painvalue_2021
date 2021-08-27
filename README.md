@@ -1,7 +1,7 @@
 
 # Code for Coll et al., The neural signature of the decision value of future pain
 
-You can execute the code below to reproduce all analyses/figures in the manuscript. The BIDS formatted data root folder is the $DATAPATH folder and this repository is the $CODEPATH folder.
+You can execute the line below to reproduce all analyses/figures in the manuscript. The BIDS formatted data root folder is the $DATAPATH folder and this repository is the $CODEPATH folder.
 
 The system parameters (e.g. number of cpus) should be changed in each script. Bootstrapping/permuting can take a long time.
 
@@ -24,8 +24,7 @@ docker run -it --rm -v $DATAPATH:/data -v $DATAPATH/derivatives:/out  poldrackla
 
 ## Using the container
 All python scripts can be executed using the docker container. You can also
-run all the scripts locally if you install all necessary packages (see requirements.txt)
-and change the paths in the scripts.
+run all the scripts locally if you install all necessary packages (see requirements.txt),
 
 To pull the container:
 ```
@@ -102,19 +101,22 @@ Anticipation level
 ./code/mvpa/predict_choice.py
 ```
 
-## Run whole brain cross-prediction searchlight
+## Run analyses on emotion dataset
+```
+./code/external_datasets/pines/rating_level.py
+```
+
+## Run whole brain cross-prediction searchlights with bootstraps
 ```
 ./code/mvpa/sl_crosspainmoney.py
 ```
 
-## Run whole brain cross-prediction searchlight in striatum ROI
 ```
-./code/mvpa/sl_crosspainmoney_striatumonly.py
+./code/mvpa/sl_crosspainemo.py
 ```
 
-## Run analyses on emotion dataset
 ```
-./code/external_datasets/pines/rating_level.py
+./code/mvpa/sl_crosspainshock.py
 ```
 
 ## Run analyses on pain risk dataset
@@ -131,7 +133,7 @@ Apply pattern and figure for risk dataset
 ./code/external/ds_001814/mvpa/risk_level_strials.py
 ```
 
-## Make all plots (panels assembled manually for manuscript)
+## Make all remaining plots (panels assembled manually for manuscript)
 
 ```
 ./code/figures/figures_pvp.py
@@ -146,8 +148,5 @@ Apply pattern and figure for risk dataset
 ./code/figures/figures_crosspred.py
 ```
 ```
-./code/figures/figures_crosspred.py
-```
-```
-./code/figures/figures_posneg_weights.py
+./code/figures/figures_decision.py
 ```

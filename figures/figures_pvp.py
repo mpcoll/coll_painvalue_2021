@@ -6,12 +6,11 @@ import pandas as pd
 from nilearn.plotting import view_img, plot_stat_map
 from nilearn import plotting
 from nilearn.regions import connected_regions
-
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
 import ptitprince as pt
-from nilearn.image import load_img
+from nilearn.image import load_img, resample_to_img, new_img_like
 from nilearn.masking import apply_mask, unmask
 from scipy.stats import zscore
 from nltools.analysis import Roc
@@ -45,7 +44,7 @@ colc = current_palette[4]
 cole = current_palette[8]
 
 # Label size
-labelfontsize = 9
+labelfontsize = 7
 titlefontsize = np.round(labelfontsize*1.5)
 ticksfontsize = np.round(labelfontsize*0.8)
 legendfontsize = np.round(labelfontsize*0.8)
@@ -116,9 +115,83 @@ disp._colorbar_ax.set_ylabel('Z score', rotation=90, fontsize=labelfontsize,
                              labelpad=5)
 lab = disp._colorbar_ax.get_yticklabels()
 disp._colorbar_ax.set_yticklabels(lab, fontsize=ticksfontsize)
+disp._colorbar_ax.yaxis.set_tick_params(pad=-0.5)
 
 fig.savefig(opj(outpath, 'pvp_slices_slicescbar.svg'), dpi=600,
         bbox_inches='tight', transparent=True)
+
+
+
+################################################################
+# Slices plot in striatum ROI
+###################################################################
+
+# Load corrected map
+pain_unthr = load_img(opj(basepath, 'derivatives/mvpa/pain_offer_level',
+                           'painlevel_bootz.nii'))
+
+
+atlas_map = load_img(opj(basepath, 'external/fsl_striatum_atlas',
+                         'striatum-con-label-thr25-7sub-2mm.nii.gz'))
+
+# Resample to group_mask
+atlas_map = resample_to_img(atlas_map, group_mask, interpolation='nearest')
+atlas_mask = new_img_like(atlas_map, np.where(atlas_map.get_data() != 0, 1, 0))
+pain_unthr_str = unmask(apply_mask(pain_unthr, atlas_mask), atlas_mask)
+
+# PLot slices
+to_plot = {
+            # 'x': [],
+           'y': [6, 8, 10, 12, 14],
+        #    'z': []
+           }
+
+cmap = plotting.cm.cold_hot
+for axis, coord in to_plot.items():
+    for c in coord:
+        fig, ax = plt.subplots(figsize=(1, 1))
+        disp = plot_stat_map(pain_unthr_str, cmap=cmap, colorbar=False,
+                        bg_img=bgimg,
+                        dim=-0.3,
+                        black_bg=False,
+                        display_mode=axis,
+                        axes=ax,
+                        vmax=7,
+                        cut_coords=(c,),
+                        alpha=1,
+                        annotate=False)
+        disp.annotate(size=ticksfontsize, left_right=False)
+        # disp.add_overlay(nsynth_mask_pm, cmap='binary_r', **{'alpha': 0.7})
+        fig.savefig(opj(outpath, 'plevel_uncSTRROI_' + axis
+                        + str(c) + '.svg'),
+                    transparent=True, bbox_inches='tight', dpi=600)
+
+# Plot a last random one to get the colorbar
+fig, ax = plt.subplots(figsize=(1, 1))
+# thr = np.min(np.abs(painvsmoney.get_data()[painvsmoney.get_data() != 0]))
+disp = plot_stat_map(pain_unthr_str,
+                        cmap=cmap, colorbar=True,
+                bg_img=bgimg,
+                dim=-0.3,
+                black_bg=False,
+                symmetric_cbar=True,
+                display_mode='y',
+                axes=ax,
+                threshold=0,
+                vmax=7,
+                cut_coords=(12,),
+                alpha=1,
+                annotate=False)
+disp.annotate(size=ticksfontsize, left_right=False)
+disp._colorbar_ax.set_ylabel('Z score', rotation=90, fontsize=labelfontsize,
+                             labelpad=5)
+lab = disp._colorbar_ax.get_yticklabels()
+disp._colorbar_ax.set_yticklabels(lab, fontsize=ticksfontsize)
+disp._colorbar_ax.yaxis.set_tick_params(pad=-0.5)
+
+fig.savefig(opj(outpath, 'plevel_uncSTRROI_slicescbar.svg'), dpi=600,
+        bbox_inches='tight', transparent=True)
+
 
 
 ###################################################################
@@ -128,7 +201,7 @@ fig.savefig(opj(outpath, 'pvp_slices_slicescbar.svg'), dpi=600,
 corr_pain = pd.read_csv(opj(basepath, 'derivatives/mvpa/pain_offer_level',
                             'painlevel_cvstats.csv'))
 
-fig, ax = plt.subplots(figsize=(1.6, 2.2))
+fig, ax = plt.subplots(figsize=(1.5, 1.5))
 
 corr_pain['pvp_cv_cosine_z'] = zscore(corr_pain['pvp_cv_cosine'])
 corr_pain['Y_true'] = corr_pain['Y_true'].astype(int)
@@ -143,12 +216,12 @@ ax.set_ylabel("Pattern similarity",
               {'fontsize': labelfontsize})
 
 ax.tick_params(axis='both', labelsize=ticksfontsize)
-ax.tick_params('both', labelsize=ticksfontsize)
 
 fig.tight_layout()
 
 fig.savefig(opj(outpath,
                 'pattern_expression_o1_lineplot_pain.svg'), transparent=True)
+
 
 
 ###################################################################
@@ -161,6 +234,7 @@ corr_money['Y_true'] = corr_money['Y_true'].astype(int)
 corr_money['type'] = 'money'
 corr_pain['type'] = "pain"
 
+
 # PVP and MVP on pain in same graph
 corr_pain['pvp_cv_cosine_z'] = zscore(corr_pain['pvp_cv_cosine'])
 corr_pain['mvp_cv_cosine_z'] = zscore(corr_pain['mvp_cv_cosine'])
@@ -169,7 +243,7 @@ corr_both = pd.concat([corr_pain]).melt(id_vars=['Y_true', 'type'], value_vars=[
 corr_both['cv_cosine_z'] = zscore(corr_both['value'])
 
 corr_both['Y_true'] = corr_both['Y_true'].astype(int)
-fig, ax = plt.subplots(figsize=(1.6, 2.2))
+fig, ax = plt.subplots(figsize=(1.5, 1.5))
 
 
 sns.pointplot('Y_true', 'value', hue='variable', data=corr_both,
@@ -206,14 +280,13 @@ corr_shock = pd.read_csv(opj(basepath, 'derivatives/mvpa/shock_intensity_level',
 corr_ant = pd.read_csv(opj(basepath, 'derivatives/mvpa/anticipation_level',
                              'anticipation_cvstats.csv'))
 
-
-fig, ax = plt.subplots(figsize=(1.6, 2.2))
+fig, ax = plt.subplots(figsize=(1.5, 1.5))
 
 corr_money['Y_true'] = corr_money['Y_true'].astype(int)
 
 
 ax = sns.pointplot(corr_money['Y_true'], zscore(corr_money['pvp_cv_cosine']),
-                   color=colp, label='Pain pattern',
+                   color=colp, label='Pain value pattern',
                    scale=0.4, ci=68, errwidth=1)
 
 # Add labels
@@ -223,25 +296,19 @@ ax.set_xlabel("Money offer level", {'fontsize': labelfontsize})
 ax.set_ylabel("Pattern similarity",
               {'fontsize': labelfontsize})
 # Set legend
-legend = ax.legend(labels=['Pain\npattern'],
+legend = ax.legend(labels=['Pain\nvalue pattern'],
                    fontsize=legendfontsize, frameon=False, loc=(0, 0.8))
-# for t, l in zip(legend.texts, ("Money offer")):
-#     t.set_text(l)
 ax.tick_params('both', labelsize=ticksfontsize)
-
 fig.tight_layout()
-
 fig.savefig(opj(outpath,
                 'pattern_expression_o1_lineplot_pvp_money.svg'), transparent=True)
 
 
-fig, ax = plt.subplots(figsize=(1.6, 1.6))
+fig, ax = plt.subplots(figsize=(1.5, 1.5))
 
 corr_shock['Y_true'] = corr_shock['Y_true'].astype(int)
-
-
 ax = sns.pointplot(corr_shock['Y_true'], zscore(corr_shock['pvp_cv_cosine']),
-                   color=cold,
+                   color=colp,
                    scale=0.4, ci=68, errwidth=1)
 
 # Add labels
@@ -251,24 +318,22 @@ ax.set_xlabel("Shock intensity", {'fontsize': labelfontsize})
 ax.set_ylabel("Pattern similarity",
               {'fontsize': labelfontsize})
 # Set legend
-legend = ax.legend(fontsize=legendfontsize, frameon=False)
-for t, l in zip(legend.texts, ("Money offer")):
-    t.set_text(l)
+legend = ax.legend(labels=['Pain\nvalue\npattern'],
+                   fontsize=legendfontsize, frameon=False, loc=(0, 0.6))
 ax.tick_params('both', labelsize=ticksfontsize)
-
 fig.tight_layout()
 
 fig.savefig(opj(outpath,
-                'pattern_expression_o1_lineplot_shock.svg'), transparent=True)
+                'pattern_expression_o1_lineplot_pvponshock.svg'), transparent=True)
 
 
-fig, ax = plt.subplots(figsize=(1.6, 1.6))
+fig, ax = plt.subplots(figsize=(1.5, 1.5))
 
 corr_ant['Y_true'] = corr_ant['Y_true'].astype(int)
 corr_ant['pvp_cv_cosine_z'] = zscore(corr_ant['pvp_cv_cosine'])
 corr_ant['mvp_cv_cosine_z'] = zscore(corr_ant['mvp_cv_cosine'])
 
-corr_plot = corr_ant.melt(id_vars=['Y_true', 'type'], value_vars=['pvp_cv_cosine_z', 'mvp_cv_cosine_z'])
+corr_plot = corr_ant.melt(id_vars=['Y_true', 'type'], value_vars=['pvp_cv_cosine_z'])
 
 ax = sns.pointplot(corr_plot['Y_true'], corr_plot['value'], hue=corr_plot['variable'],
                    scale=0.4, ci=68, errwidth=1, palette=[colp, colm], legend=False)
@@ -281,12 +346,7 @@ ax.set_ylabel("Pattern similarity",
               {'fontsize': labelfontsize})
 
 ax.legend([],[], frameon=False)
-# # Set legend
-# legend = ax.legend(fontsize=legendfontsize, frameon=False)
-# for t, l in zip(legend.texts, ['', ""]):
-#     t.set_text(l)
 ax.tick_params('both', labelsize=ticksfontsize)
-# ax._legend.remove()
 fig.tight_layout()
 
 fig.savefig(opj(outpath,
@@ -294,7 +354,7 @@ fig.savefig(opj(outpath,
 
 
 
-fig, ax = plt.subplots(figsize=(1.6, 1.6))
+fig, ax = plt.subplots(figsize=(1.5, 1.5))
 
 corr_ant['Y_true'] = corr_ant['Y_true'].astype(int)
 corr_ant['pvp_cv_cosine_z'] = zscore(corr_ant['pvp_cv_cosine'])
@@ -326,7 +386,7 @@ fig.savefig(opj(outpath,
 
 
 
-fig, ax = plt.subplots(figsize=(1.6, 1.6))
+fig, ax = plt.subplots(figsize=(1.5, 1.5))
 
 corr_shock['Y_true'] = corr_shock['Y_true'].astype(int)
 corr_shock['pvp_cv_cosine_z'] = zscore(corr_shock['pvp_cv_cosine'])
@@ -364,7 +424,7 @@ fig.savefig(opj(outpath,
 corr_pain = pd.read_csv(opj(basepath, 'derivatives/mvpa/pain_offer_level',
                             'painlevel_cvstats.csv'))
 # Add the intercept to the data
-fig1, ax1 = plt.subplots(figsize=(1.6, 2.2))
+fig1, ax1 = plt.subplots(figsize=(1.5, 1.5))
 ax1.set_ylim((1, 10))
 ax1.set_xlim((1, 10))
 
@@ -380,7 +440,7 @@ ax1.set_xlabel('Pain offer level', {'fontsize': labelfontsize})
 ax1.set_title('',
               {'fontsize': titlefontsize})
 
-ax1.set_ylabel('Cross-validated prediction',
+ax1.set_ylabel('Predicted level',
                {'fontsize': labelfontsize})
 ax1.set_xticks(range(1, 11))
 ax1.set_xticklabels(range(1, 11))
@@ -404,7 +464,7 @@ for s in corr_pain.subject_id.unique():
     slopes_pain.append(slope)
 
 # Add the intercept to the data
-fig1, ax1 = plt.subplots(figsize=(0.6, 2.2))
+fig1, ax1 = plt.subplots(figsize=(0.6, 1.5))
 
 
 pt.half_violinplot(y=slopes_pain, inner=None,
@@ -435,7 +495,7 @@ fig1.savefig(opj(outpath, 'slopes_bysub_pain.svg'), transparent=True)
 
 roc_res = pd.read_csv(opj(basepath, 'derivatives/mvpa/pain_offer_level/painlevel_roc_results.csv'))
 
-fig, ax = plt.subplots(figsize=(1.6, 2.2))
+fig, ax = plt.subplots(figsize=(1.5, 1.5))
 x = np.arange(3)
 width = 0.5
 ax.bar(x=x[0]+width,
@@ -457,14 +517,12 @@ ax.bar(x=x[2]-width,
 ax.set_xlabel('')
 ax.set_ylim((0.2, 1))
 ax.set_xticks([])
-# ax.axhline(0.6315, linestyle='--', color='r')
 ax.axhline(0.5, linestyle='--', color='k')
 
 ax.set_xticklabels('')
 ax.tick_params(axis='both', labelsize=ticksfontsize)
 ax.set_ylabel('Accuracy', fontsize=labelfontsize)
 ax.legend(fontsize=legendfontsize, ncol=1, loc='lower left')
-# ax.axhline(y=0.5, linestyle='--', color='k')
 ax.set_xlabel('')
 ax.tick_params(axis='both', labelsize=ticksfontsize)
 ax.tick_params(axis='x', labelsize=labelfontsize)
@@ -477,7 +535,7 @@ fig.savefig(opj(outpath, 'forced_choice_acc_painonly.svg'),
 
 
 #######################################################################
-# Plots for incremental prediction
+# Parcellation plots
 #######################################################################
 
 corr_pain = pd.read_csv(opj(basepath, 'derivatives/mvpa/pain_offer_level',
@@ -498,16 +556,12 @@ sns.distplot(par_scores, hist=True, kde=True, color=colp,
              ax=ax, norm_hist=True)
 
 ax.set_ylabel('Density', fontsize=labelfontsize)
-# ax.set_xlim((-0.2, 0.6))
 
-# ax.set_xlim((-0.05, 0.35))
-# ax.set_title('Money', fontsize=titlefontsize)
 ax.set_xlabel("Pearson r", fontsize=labelfontsize)
 ax.tick_params(axis='both', labelsize=ticksfontsize)
 ax.axvline(np.max(par_scores), ymin=0, ymax=0.8, color=colp, linestyle='--',
            label="Top parcel")
-# ax.axvline(thr, ymin=0, ymax=0.8, color=colp, linestyle='-.',
-#            label="Top 1%")
+
 ax.axvline(corr_pain['r_xval'][0], ymin=0, ymax=0.8, color=colp,
            label="Whole-brain")
 ax.legend(ncol=3, frameon=False, fontsize=legendfontsize, loc=(0, 1),
@@ -585,7 +639,6 @@ fig.savefig(opj(outpath, 'incremental_par_money.svg'), dpi=600, transparent=True
 
 
 # Load parcels labels sorted
-
 pmapfdr = apply_mask(load_img(opj(basepath, 'derivatives/mvpa/pain_offer_level',
                            'painlevel_bootz_fdr05.nii')), group_mask)
 
@@ -610,8 +663,10 @@ for par in np.unique(parcel):
 
 parcel_top = np.where(parcel == par_labels_pain[0], 1, 0)
 
-
 combined_par = parcel_masked + pmapfdr_masked
+view_img(unmask(parcel_masked, group_mask), cmap='Blues_r')
+
+
 
 # PLot slices
 to_plot = {'x': [-8, -4],
@@ -637,7 +692,7 @@ for axis, coord in to_plot.items():
                              annotate=False)
         disp.annotate(size=ticksfontsize, left_right=False)
         disp.add_overlay(unmask(pmapfdr_masked, group_mask), cmap=fdr)
-        disp.add_overlay(unmask(parcel_top, group_mask), cmap=top)
+        # disp.add_overlay(unmask(parcel_top, group_mask), cmap=top)
 
         fig.savefig(opj(outpath, 'parcel_pain_' + axis
                         + str(c) + '.svg'),
@@ -667,8 +722,9 @@ for par in np.unique(parcel):
         parcel_masked[parcel == par] = -5
 
 parcel_top = np.where(parcel == par_labels_money[0], 1, 0)
-
 combined_par = parcel_masked + pmapfdr_masked
+view_img(unmask(parcel_masked, group_mask), cmap='Blues_r')
+
 
 # PLot slices
 to_plot = {'x': [10],
@@ -692,7 +748,7 @@ for axis, coord in to_plot.items():
                              annotate=False)
         disp.annotate(size=ticksfontsize, left_right=False)
         disp.add_overlay(unmask(mmapfdr_masked, group_mask), cmap=fdr)
-        disp.add_overlay(unmask(parcel_top, group_mask), cmap=top)
+        # disp.add_overlay(unmask(parcel_top, group_mask), cmap=top)
 
         fig.savefig(opj(outpath, 'parcel_money_' + axis
                         + str(c) + '.svg'),
@@ -737,7 +793,7 @@ pd.DataFrame(roc_results).to_csv(opj(outpath, 'pvp_on_money' + '_roc_results.csv
 #######################################################################
 
 roc_res = pd.DataFrame(roc_results)
-fig, ax = plt.subplots(figsize=(1.6, 2.2))
+fig, ax = plt.subplots(figsize=(1.5, 1.5))
 x = np.arange(3)
 width = 0.5
 ax.bar(x=x[0]+width,
@@ -781,7 +837,6 @@ fig.savefig(opj(outpath, 'forced_choice_acc_money_usingpvp.svg'),
             dpi=600, transparent=True)
 
 
-
 ###################################################################
 # Calculate ROC accuracy between levels for shock images
 ###################################################################
@@ -823,7 +878,7 @@ pd.DataFrame(roc_results).to_csv(opj(outpath, 'pvp_on_shock' + '_roc_results.csv
 #######################################################################
 
 roc_res = pd.DataFrame(roc_results)
-fig, ax = plt.subplots(figsize=(1.6, 1.6))
+fig, ax = plt.subplots(figsize=(1.5, 1.5))
 x = np.arange(3)
 width = 0.5
 ax.bar(x=x[0]+width,
@@ -845,7 +900,7 @@ ax.bar(x=x[2]-width,
 
 
 ax.set_xlabel('')
-ax.set_ylim((0.1, 0.8))
+ax.set_ylim((0.2, 0.8))
 ax.set_xticks([])
 # ax.axhline(0.6315, linestyle='--', color='r')
 ax.axhline(0.5, linestyle='--', color='k')
@@ -867,92 +922,6 @@ fig.tight_layout()
 fig.savefig(opj(outpath, 'forced_choice_acc_shock_usingpvp.svg'),
             dpi=600, transparent=True)
 
-
-
-###################################################################
-# Calculate ROC accuracy between levels for shock images
-###################################################################
-
-comparisons = [[1, 10], [1, 5], [5, 10]]
-# comparisons = [[1, 5]]
-
-corr_shock.Y_true.value_counts()
-roc_results = dict(accuracy=[], accuracy_se=[], accuracy_p=[],
-                   comparison=comparisons)
-
-for c in comparisons:
-    inputs = np.asarray(corr_shock.mvp_cv_cosine[corr_shock.Y_true.isin(c)])
-    outcome = list(corr_shock.Y_true[corr_shock.Y_true.isin(c)])
-    outcome = np.where(np.asarray(outcome) == c[1], 1, 0).astype(bool)
-
-    subs = np.asarray(corr_shock.subject_id[corr_shock.Y_true.isin(c)], dtype=object)
-    subs = [int(s[4:]) for s in corr_shock.subject_id[corr_shock.Y_true.isin(c)]]
-    subs = np.asarray(subs, dtype=object)
-
-
-    roc = Roc(input_values=inputs,
-              binary_outcome=outcome)
-
-    roc.calculate()
-    # Use balanced accuracy
-    roc_results['accuracy'].append(np.mean([roc.sensitivity, roc.specificity]))
-    roc_results['accuracy_se'].append(roc.accuracy_se)
-    # Binomial test using balanced accuracy
-    roc_results['accuracy_p'].append(binom_test(x=[np.round(len(outcome)*np.mean(roc_results['accuracy'][-1])),
-              len(outcome)-np.round(len(outcome)*np.mean(roc_results['accuracy'][-1]))] ))
-
-# Save
-# Save
-pd.DataFrame(roc_results).to_csv(opj(outpath, 'mvp_on_shock' + '_roc_results.csv'))
-
-#######################################################################
-# ROC results
-#######################################################################
-
-roc_res = pd.DataFrame(roc_results)
-fig, ax = plt.subplots(figsize=(1.6, 1.6))
-x = np.arange(3)
-width = 0.5
-ax.bar(x=x[0]+width,
-       height=roc_res["accuracy"][0],
-       width=width, label=str(roc_res['comparison'][0]).replace('[', '').replace(']', '').replace(',', ' vs '),
-       color=sns.color_palette("Greens_r", n_colors=3)[0],
-       yerr=roc_res['accuracy_se'][0])
-ax.bar(x=x[1],
-       height=roc_res["accuracy"][1],
-       width=width, label=str(roc_res['comparison'][1]).replace('[', '').replace(']', '').replace(',', ' vs '),
-       color=sns.color_palette("Greens_r", n_colors=3)[1],
-       yerr=roc_res['accuracy_se'][1])
-ax.bar(x=x[2]-width,
-       height=roc_res["accuracy"][2],
-       width=width, label=str(roc_res['comparison'][2]).replace('[', '').replace(']', '').replace(',', ' vs '),
-       color=sns.color_palette("Greens_r", n_colors=3)[2],
-       yerr=roc_res['accuracy_se'][2])
-
-
-
-ax.set_xlabel('')
-ax.set_ylim((0.1, 0.8))
-ax.set_xticks([])
-# ax.axhline(0.6315, linestyle='--', color='r')
-ax.axhline(0.5, linestyle='--', color='k')
-# ax.spines['left'].set_color('w')
-
-ax.set_xticklabels('')
-ax.tick_params(axis='both', labelsize=ticksfontsize)
-ax.tick_params(axis='y', labelsize=ticksfontsize, color='k')
-ax.set_ylabel('Balanced accuracy', fontsize=labelfontsize, color='k')
-# [t.set_color('w') for t in ax.yaxis.get_ticklabels()]
-
-ax.legend(fontsize=legendfontsize, ncol=1, loc='lower left')
-# ax.axhline(y=0.5, linestyle='--', color='k')
-ax.set_xlabel('')
-
-ax.legend(fontsize=legendfontsize, loc='lower left', title='Shock intensity',
-          title_fontsize=legendfontsize)
-fig.tight_layout()
-fig.savefig(opj(outpath, 'forced_choice_acc_shock_usingmvp.svg'),
-            dpi=600, transparent=True)
 
 ###################################################################
 # Calculate ROC accuracy between levels for anticipation
@@ -995,7 +964,7 @@ pd.DataFrame(roc_results).to_csv(opj(outpath, 'pvp_on_ant' + '_roc_results.csv')
 #######################################################################
 
 roc_res = pd.DataFrame(roc_results)
-fig, ax = plt.subplots(figsize=(1.6, 1.6))
+fig, ax = plt.subplots(figsize=(1.5, 1.5))
 x = np.arange(3)
 width = 0.5
 ax.bar(x=x[0]+width,
@@ -1017,7 +986,7 @@ ax.bar(x=x[2]-width,
 
 
 ax.set_xlabel('')
-ax.set_ylim((0.1, 0.8))
+ax.set_ylim((0.2, 0.8))
 ax.set_xticks([])
 # ax.axhline(0.6315, linestyle='--', color='r')
 ax.axhline(0.5, linestyle='--', color='k')
@@ -1040,91 +1009,6 @@ fig.savefig(opj(outpath, 'forced_choice_acc_ant_usingpvp.svg'),
             dpi=600, transparent=True)
 
 
-###################################################################
-# Calculate ROC accuracy between levels for anticipation
-###################################################################
-
-comparisons = [[1, 5], [1, 10], [5, 10]]
-# comparisons = [[1, 5]]
-
-roc_results = dict(accuracy=[], accuracy_se=[], accuracy_p=[],
-                   comparison=comparisons)
-
-for c in comparisons:
-    inputs = np.asarray(corr_ant.mvp_cv_cosine[corr_ant.Y_true.isin(c)])
-    outcome = list(corr_ant.Y_true[corr_ant.Y_true.isin(c)])
-    outcome = np.where(np.asarray(outcome) == c[1], 1, 0).astype(bool)
-
-    subs = np.asarray(corr_ant.subject_id[corr_ant.Y_true.isin(c)], dtype=object)
-    subs = [int(s[4:]) for s in corr_ant.subject_id[corr_ant.Y_true.isin(c)]]
-    subs = np.asarray(subs, dtype=object)
-
-
-    roc = Roc(input_values=inputs,
-              binary_outcome=outcome)
-
-
-    roc.calculate()
-    # Use balanced accuracy
-    roc_results['accuracy'].append(np.mean([roc.sensitivity, roc.specificity]))
-    roc_results['accuracy_se'].append(roc.accuracy_se)
-    # Binomial test using balanced accuracy
-    roc_results['accuracy_p'].append(binom_test(x=[np.round(len(outcome)*np.mean(roc_results['accuracy'][-1])),
-              len(outcome)-np.round(len(outcome)*np.mean(roc_results['accuracy'][-1]))] ))
-
-    plt.figure()
-# Save
-# Save
-pd.DataFrame(roc_results).to_csv(opj(outpath, 'pvp_on_ant' + '_roc_results.csv'))
-
-#######################################################################
-# ROC results
-#######################################################################
-
-roc_res = pd.DataFrame(roc_results)
-fig, ax = plt.subplots(figsize=(1.6, 1.6))
-x = np.arange(3)
-width = 0.5
-ax.bar(x=x[0]+width,
-       height=roc_res["accuracy"][0],
-       width=width, label=str(roc_res['comparison'][0]).replace('[', '').replace(']', '').replace(',', ' vs '),
-       color=sns.color_palette("Greens_r", n_colors=3)[0],
-       yerr=roc_res['accuracy_se'][0])
-ax.bar(x=x[1],
-       height=roc_res["accuracy"][1],
-       width=width, label=str(roc_res['comparison'][1]).replace('[', '').replace(']', '').replace(',', ' vs '),
-       color=sns.color_palette("Greens_r", n_colors=3)[1],
-       yerr=roc_res['accuracy_se'][1])
-ax.bar(x=x[2]-width,
-       height=roc_res["accuracy"][2],
-       width=width, label=str(roc_res['comparison'][2]).replace('[', '').replace(']', '').replace(',', ' vs '),
-       color=sns.color_palette("Greens_r", n_colors=3)[2],
-       yerr=roc_res['accuracy_se'][2])
-
-
-
-ax.set_xlabel('')
-ax.set_ylim((0.1, 0.8))
-ax.set_xticks([])
-# ax.axhline(0.6315, linestyle='--', color='r')
-ax.axhline(0.5, linestyle='--', color='k')
-# ax.spines['left'].set_color('w')
-
-ax.set_xticklabels('')
-ax.tick_params(axis='both', labelsize=ticksfontsize)
-ax.tick_params(axis='y', labelsize=ticksfontsize, color='k')
-ax.set_ylabel('Balanced accuracy', fontsize=labelfontsize, color='k')
-# [t.set_color('w') for t in ax.yaxis.get_ticklabels()]
-
-ax.legend(fontsize=legendfontsize, ncol=1, loc='lower left')
-# ax.axhline(y=0.5, linestyle='--', color='k')
-ax.set_xlabel('')
-
-ax.legend(fontsize=legendfontsize, loc='lower left', title='Anticipated level',
-          title_fontsize=legendfontsize)
-fig.tight_layout()
-fig.savefig(opj(outpath, 'forced_choice_acc_ant_usingmvp.svg'),
-            dpi=600, transparent=True)
 
 
 ###################################################################
@@ -1279,13 +1163,17 @@ for t, r1, r2 in zip(theta, radii, radii2):
     color = '#00805c'
   else:
     color = colm
+#   r2 = np.abs(r2)
+#   bars = ax.bar(t-0.225, r2, width=width/2, bottom=0.0, alpha=1,
+#                 color=color, linewidth=0, edgecolor='k')
 
 ax.yaxis.set_ticks([0, 0.1])
 ax.yaxis.set_ticklabels(['', ''])
 ax.xaxis.set_ticks(theta+width/2)
 ax.yaxis.set_ticks([0.1])
 ax.yaxis.set_ticklabels(["|r| = 0.10"], size=ticksfontsize-2)
-
+# ax.tick_params(axis = "x", pad = 30)
+# ax.xaxis.grid(False)
 ax.xaxis.set_ticklabels([])
 
 
@@ -1295,7 +1183,9 @@ for t, o in zip(theta, np.ones_like(theta)):
   print(deg_rot)
   if deg_rot > 180:
     deg_rot =  360- deg_rot
-
+#   if labels_7[counter] == 'Ventral\nattention':
+#       offset = 0.145
+#   else:
   offset = 0.13
   ax.text(t, offset, labels_7[counter], horizontalalignment='center',
           verticalalignment='center', rotation=0, fontsize=labelfontsize-2)
@@ -1307,6 +1197,7 @@ fig.savefig(opj(outpath, 'cortical_7network_pearson_wedge_pvp.svg'), dpi=600,
 
 
 # Redo just for legend
+
 N = len(df_wedge)
 theta = np.linspace(0, 2 * np.pi, N, endpoint=False)
 radii = np.array(df_wedge['Pain pattern'])
@@ -1328,10 +1219,14 @@ for t, r1, r2 in zip(theta, radii, radii2):
   else:
     color = colm
   r2 = np.abs(r2)
+#   bars = ax.bar(t-0.225, r2, width=width/2, bottom=0.0, alpha=1,
+#                 color=color, linewidth=0, edgecolor='k')
 
 ax.yaxis.set_ticks([0, 0.1])
 ax.yaxis.set_ticklabels(['', ''])
 ax.xaxis.set_ticks(theta+width/2)
+# ax.tick_params(axis = "x", pad = 30)
+# ax.xaxis.grid(False)
 ax.xaxis.set_ticklabels([])
 
 counter = 0
@@ -1445,3 +1340,393 @@ plot_multi_supp(map_unthr,
                 name3='FWE',
                 title='Parametric effect of pain offer level',
                 cmap=npl.cm.cold_hot)
+
+
+###################################################################
+# Other patterns
+###################################################################
+current_palette = sns.color_palette('colorblind', 10)
+
+# Shock pattern, NPS, SIIPS, PINES on pain and money
+fig, ax = plt.subplots(figsize=(1.5, 1.5))
+
+corr_pain['Y_true'] = corr_pain['Y_true'].astype(int)
+corr_pain['sip_cv_cosine_z'] = zscore(corr_pain['sip_cv_cosine'])
+
+corr_plot = corr_pain.melt(id_vars=['Y_true', 'type'], value_vars=['sip_cv_cosine_z'])
+
+ax = sns.pointplot(corr_plot['Y_true'], corr_plot['value'], hue=corr_plot['variable'],
+                   scale=0.4, ci=68, errwidth=1, palette=['#de8f05'], legend=False)
+
+# Add labels
+ax.set_ylim(-0.6, 1)
+ax.set_title("", {'fontsize': titlefontsize})
+ax.set_xlabel("Pain offer level", {'fontsize': labelfontsize})
+ax.set_ylabel("Pattern similarity",
+              {'fontsize': labelfontsize})
+
+# # Set legend
+legend = ax.legend(labels=['Shock\nintensity\npattern'],
+                   fontsize=legendfontsize, frameon=False, loc=(0, 0.65))
+ax.tick_params('both', labelsize=ticksfontsize)
+
+fig.tight_layout()
+
+fig.savefig(opj(outpath,
+                'pattern_expression_o1_lineplot_sip_onpain.svg'), transparent=True)
+
+colc = current_palette[3]
+cole = current_palette[5]
+colf = current_palette[4]
+
+# Shock pattern, NPS, SIIPS, PINES on pain and money
+fig, ax = plt.subplots(figsize=(1.5, 1.5))
+
+corr_pain['Y_true'] = corr_pain['Y_true'].astype(int)
+corr_pain['nps_cosine_z'] = zscore(corr_pain['nps_cosine'])
+
+corr_plot = corr_pain.melt(id_vars=['Y_true', 'type'], value_vars=['nps_cosine_z'])
+
+ax = sns.pointplot(corr_plot['Y_true'], corr_plot['value'], hue=corr_plot['variable'],
+                   scale=0.4, ci=68, errwidth=1, palette=[colc], legend=False)
+
+# Add labels
+ax.set_ylim(-0.6, 1)
+ax.set_title("", {'fontsize': titlefontsize})
+ax.set_xlabel("Pain offer level", {'fontsize': labelfontsize})
+ax.set_ylabel("Pattern similarity",
+              {'fontsize': labelfontsize})
+
+# # Set legend
+legend = ax.legend(fontsize=legendfontsize, frameon=False, loc=(0, 0.8),
+                   handletextpad=0)
+for t, l in zip(legend.texts, ['NPS', ""]):
+    t.set_text(l)
+ax.tick_params('both', labelsize=ticksfontsize)
+
+fig.tight_layout()
+
+fig.savefig(opj(outpath,
+                'pattern_expression_o1_lineplot_nps_onpain.svg'), transparent=True)
+
+
+# Shock pattern, NPS, SIIPS, PINES on pain and money
+fig, ax = plt.subplots(figsize=(1.5, 1.5))
+
+corr_pain['Y_true'] = corr_pain['Y_true'].astype(int)
+corr_pain['siips_cosine_z'] = zscore(corr_pain['siips_cosine'])
+
+corr_plot = corr_pain.melt(id_vars=['Y_true', 'type'], value_vars=['siips_cosine_z'])
+
+ax = sns.pointplot(corr_plot['Y_true'], corr_plot['value'], hue=corr_plot['variable'],
+                   scale=0.4, ci=68, errwidth=1, palette=[cole], legend=False)
+
+# Add labels
+ax.set_ylim(-0.6, 1)
+ax.set_title("", {'fontsize': titlefontsize})
+ax.set_xlabel("Pain offer level", {'fontsize': labelfontsize})
+ax.set_ylabel("Pattern similarity",
+              {'fontsize': labelfontsize})
+
+# # Set legend
+legend = ax.legend(fontsize=legendfontsize, frameon=False, loc=(0, 0.8),
+                   handletextpad=0)
+for t, l in zip(legend.texts, ['SIIPS', ""]):
+    t.set_text(l)
+ax.tick_params('both', labelsize=ticksfontsize)
+
+fig.tight_layout()
+
+fig.savefig(opj(outpath,
+                'pattern_expression_o1_lineplot_siips_onpain.svg'), transparent=True)
+
+
+
+# Shock pattern, NPS, SIIPS, PINES on pain and money
+fig, ax = plt.subplots(figsize=(1.5, 1.5))
+
+corr_pain['Y_true'] = corr_pain['Y_true'].astype(int)
+corr_pain['pines_cosine_z'] = zscore(corr_pain['pines_cosine'])
+
+corr_plot = corr_pain.melt(id_vars=['Y_true', 'type'], value_vars=['pines_cosine_z'])
+
+ax = sns.pointplot(corr_plot['Y_true'], corr_plot['value'], hue=corr_plot['variable'],
+                   scale=0.4, ci=68, errwidth=1, palette=[colf], legend=False)
+
+# Add labels
+ax.set_ylim(-0.6, 1)
+ax.set_title("", {'fontsize': titlefontsize})
+ax.set_xlabel("Pain offer level", {'fontsize': labelfontsize})
+ax.set_ylabel("Pattern similarity",
+              {'fontsize': labelfontsize})
+
+# # Set legend
+legend = ax.legend(labels=['PINES'],
+                   fontsize=legendfontsize, frameon=False, loc=(0, 0.65))
+ax.tick_params('both', labelsize=ticksfontsize)
+
+fig.tight_layout()
+
+fig.savefig(opj(outpath,
+                'pattern_expression_o1_lineplot_pines_onpain.svg'),
+            transparent=True)
+
+
+###################################################################
+# Calculate ROC accuracy between levels for Pain offer using pines
+###################################################################
+
+comparisons = [[1, 5], [1, 10], [5, 10]]
+# comparisons = [[1, 5]]
+
+roc_results = dict(accuracy=[], accuracy_se=[], accuracy_p=[],
+                   comparison=comparisons)
+
+for c in comparisons:
+    inputs = np.asarray(corr_pain.pines_cosine[corr_pain.Y_true.isin(c)])
+    outcome = list(corr_pain.Y_true[corr_pain.Y_true.isin(c)])
+    outcome = np.where(np.asarray(outcome) == c[1], 1, 0).astype(bool)
+
+    subs = np.asarray(corr_pain.subject_id[corr_pain.Y_true.isin(c)], dtype=object)
+    subs = [int(s[4:]) for s in corr_pain.subject_id[corr_pain.Y_true.isin(c)]]
+    subs = np.asarray(subs, dtype=object)
+
+
+    roc = Roc(input_values=inputs,
+              binary_outcome=outcome)
+
+
+    roc.calculate()
+    # Use balanced accuracy
+    roc_results['accuracy'].append(np.mean([roc.sensitivity, roc.specificity]))
+    roc_results['accuracy_se'].append(roc.accuracy_se)
+    # Binomial test using balanced accuracy
+    roc_results['accuracy_p'].append(binom_test(x=[np.round(len(outcome)*np.mean(roc_results['accuracy'][-1])),
+              len(outcome)-np.round(len(outcome)*np.mean(roc_results['accuracy'][-1]))] ))
+
+# Save
+# Save
+pd.DataFrame(roc_results).to_csv(opj(outpath, 'pines_on_pval' + '_roc_results.csv'))
+
+#######################################################################
+# ROC results
+#######################################################################
+
+roc_res = pd.DataFrame(roc_results)
+fig, ax = plt.subplots(figsize=(1.5, 1.5))
+x = np.arange(3)
+width = 0.5
+ax.bar(x=x[0]+width,
+       height=roc_res["accuracy"][0],
+       width=width, label=str(roc_res['comparison'][0]).replace('[', '').replace(']', '').replace(',', ' vs '),
+       color=sns.color_palette("Purples_r", n_colors=3)[0],
+       yerr=roc_res['accuracy_se'][0])
+ax.bar(x=x[1],
+       height=roc_res["accuracy"][1],
+       width=width, label=str(roc_res['comparison'][1]).replace('[', '').replace(']', '').replace(',', ' vs '),
+       color=sns.color_palette("Purples_r", n_colors=3)[1],
+       yerr=roc_res['accuracy_se'][1])
+ax.bar(x=x[2]-width,
+       height=roc_res["accuracy"][2],
+       width=width, label=str(roc_res['comparison'][2]).replace('[', '').replace(']', '').replace(',', ' vs '),
+       color=sns.color_palette("Purples_r", n_colors=3)[2],
+       yerr=roc_res['accuracy_se'][2])
+
+
+
+ax.set_xlabel('')
+ax.set_ylim((0.2, 0.8))
+ax.set_xticks([])
+# ax.axhline(0.6315, linestyle='--', color='r')
+ax.axhline(0.5, linestyle='--', color='k')
+# ax.spines['left'].set_color('w')
+
+ax.set_xticklabels('')
+ax.tick_params(axis='both', labelsize=ticksfontsize)
+ax.tick_params(axis='y', labelsize=ticksfontsize, color='k')
+ax.set_ylabel('Balanced accuracy', fontsize=labelfontsize, color='k')
+# [t.set_color('w') for t in ax.yaxis.get_ticklabels()]
+
+ax.legend(fontsize=legendfontsize, ncol=1, loc='lower left')
+# ax.axhline(y=0.5, linestyle='--', color='k')
+ax.set_xlabel('')
+
+ax.legend(fontsize=legendfontsize, loc='lower left', title='Pain offer',
+          title_fontsize=legendfontsize)
+fig.tight_layout()
+fig.savefig(opj(outpath, 'forced_choice_acc_pain_usingpines.svg'),
+            dpi=600, transparent=True)
+
+
+
+###################################################################
+# Calculate ROC accuracy between levels for Pain offer using siips
+###################################################################
+
+comparisons = [[1, 5], [1, 10], [5, 10]]
+# comparisons = [[1, 5]]
+
+roc_results = dict(accuracy=[], accuracy_se=[], accuracy_p=[],
+                   comparison=comparisons)
+
+for c in comparisons:
+    inputs = np.asarray(corr_pain.siips_cosine[corr_pain.Y_true.isin(c)])
+    outcome = list(corr_pain.Y_true[corr_pain.Y_true.isin(c)])
+    outcome = np.where(np.asarray(outcome) == c[1], 1, 0).astype(bool)
+
+    subs = np.asarray(corr_pain.subject_id[corr_pain.Y_true.isin(c)], dtype=object)
+    subs = [int(s[4:]) for s in corr_pain.subject_id[corr_pain.Y_true.isin(c)]]
+    subs = np.asarray(subs, dtype=object)
+
+
+    roc = Roc(input_values=inputs,
+              binary_outcome=outcome)
+
+
+    roc.calculate()
+    # Use balanced accuracy
+    roc_results['accuracy'].append(np.mean([roc.sensitivity, roc.specificity]))
+    roc_results['accuracy_se'].append(roc.accuracy_se)
+    # Binomial test using balanced accuracy
+    roc_results['accuracy_p'].append(binom_test(x=[np.round(len(outcome)*np.mean(roc_results['accuracy'][-1])),
+              len(outcome)-np.round(len(outcome)*np.mean(roc_results['accuracy'][-1]))] ))
+
+# Save
+# Save
+pd.DataFrame(roc_results).to_csv(opj(outpath, 'siips_on_pval' + '_roc_results.csv'))
+
+#######################################################################
+# ROC results
+#######################################################################
+
+roc_res = pd.DataFrame(roc_results)
+fig, ax = plt.subplots(figsize=(1.5, 1.5))
+x = np.arange(3)
+width = 0.5
+ax.bar(x=x[0]+width,
+       height=roc_res["accuracy"][0],
+       width=width, label=str(roc_res['comparison'][0]).replace('[', '').replace(']', '').replace(',', ' vs '),
+       color=sns.color_palette("Oranges_r", n_colors=3)[0],
+       yerr=roc_res['accuracy_se'][0])
+ax.bar(x=x[1],
+       height=roc_res["accuracy"][1],
+       width=width, label=str(roc_res['comparison'][1]).replace('[', '').replace(']', '').replace(',', ' vs '),
+       color=sns.color_palette("Oranges_r", n_colors=3)[1],
+       yerr=roc_res['accuracy_se'][1])
+ax.bar(x=x[2]-width,
+       height=roc_res["accuracy"][2],
+       width=width, label=str(roc_res['comparison'][2]).replace('[', '').replace(']', '').replace(',', ' vs '),
+       color=sns.color_palette("Oranges_r", n_colors=3)[2],
+       yerr=roc_res['accuracy_se'][2])
+
+
+
+ax.set_xlabel('')
+ax.set_ylim((0.2, 0.8))
+ax.set_xticks([])
+# ax.axhline(0.6315, linestyle='--', color='r')
+ax.axhline(0.5, linestyle='--', color='k')
+# ax.spines['left'].set_color('w')
+
+ax.set_xticklabels('')
+ax.tick_params(axis='both', labelsize=ticksfontsize)
+ax.tick_params(axis='y', labelsize=ticksfontsize, color='k')
+ax.set_ylabel('Balanced accuracy', fontsize=labelfontsize, color='k')
+# [t.set_color('w') for t in ax.yaxis.get_ticklabels()]
+
+ax.legend(fontsize=legendfontsize, ncol=1, loc='lower left')
+# ax.axhline(y=0.5, linestyle='--', color='k')
+ax.set_xlabel('')
+
+ax.legend(fontsize=legendfontsize, loc='lower left', title='Pain offer',
+          title_fontsize=legendfontsize)
+fig.tight_layout()
+fig.savefig(opj(outpath, 'forced_choice_acc_pain_usingsiips.svg'),
+            dpi=600, transparent=True)
+
+
+
+###################################################################
+# Calculate ROC accuracy between levels for Pain offer using NPS
+###################################################################
+
+comparisons = [[1, 5], [1, 10], [5, 10]]
+# comparisons = [[1, 5]]
+
+roc_results = dict(accuracy=[], accuracy_se=[], accuracy_p=[],
+                   comparison=comparisons)
+
+for c in comparisons:
+    inputs = np.asarray(corr_pain.nps_cosine[corr_pain.Y_true.isin(c)])
+    outcome = list(corr_pain.Y_true[corr_pain.Y_true.isin(c)])
+    outcome = np.where(np.asarray(outcome) == c[1], 1, 0).astype(bool)
+
+    subs = np.asarray(corr_pain.subject_id[corr_pain.Y_true.isin(c)], dtype=object)
+    subs = [int(s[4:]) for s in corr_pain.subject_id[corr_pain.Y_true.isin(c)]]
+    subs = np.asarray(subs, dtype=object)
+
+
+    roc = Roc(input_values=inputs,
+              binary_outcome=outcome)
+
+
+    roc.calculate()
+    # Use balanced accuracy
+    roc_results['accuracy'].append(np.mean([roc.sensitivity, roc.specificity]))
+    roc_results['accuracy_se'].append(roc.accuracy_se)
+    # Binomial test using balanced accuracy
+    roc_results['accuracy_p'].append(binom_test(x=[np.round(len(outcome)*np.mean(roc_results['accuracy'][-1])),
+              len(outcome)-np.round(len(outcome)*np.mean(roc_results['accuracy'][-1]))] ))
+
+# Save
+# Save
+pd.DataFrame(roc_results).to_csv(opj(outpath, 'nps_on_pval' + '_roc_results.csv'))
+
+#######################################################################
+# ROC results
+#######################################################################
+
+roc_res = pd.DataFrame(roc_results)
+fig, ax = plt.subplots(figsize=(1.5, 1.5))
+x = np.arange(3)
+width = 0.5
+ax.bar(x=x[0]+width,
+       height=roc_res["accuracy"][0],
+       width=width, label=str(roc_res['comparison'][0]).replace('[', '').replace(']', '').replace(',', ' vs '),
+       color=sns.color_palette("Oranges_r", n_colors=3)[0],
+       yerr=roc_res['accuracy_se'][0])
+ax.bar(x=x[1],
+       height=roc_res["accuracy"][1],
+       width=width, label=str(roc_res['comparison'][1]).replace('[', '').replace(']', '').replace(',', ' vs '),
+       color=sns.color_palette("Oranges_r", n_colors=3)[1],
+       yerr=roc_res['accuracy_se'][1])
+ax.bar(x=x[2]-width,
+       height=roc_res["accuracy"][2],
+       width=width, label=str(roc_res['comparison'][2]).replace('[', '').replace(']', '').replace(',', ' vs '),
+       color=sns.color_palette("Oranges_r", n_colors=3)[2],
+       yerr=roc_res['accuracy_se'][2])
+
+
+
+ax.set_xlabel('')
+ax.set_ylim((0.2, 0.8))
+ax.set_xticks([])
+# ax.axhline(0.6315, linestyle='--', color='r')
+ax.axhline(0.5, linestyle='--', color='k')
+# ax.spines['left'].set_color('w')
+
+ax.set_xticklabels('')
+ax.tick_params(axis='both', labelsize=ticksfontsize)
+ax.tick_params(axis='y', labelsize=ticksfontsize, color='k')
+ax.set_ylabel('Balanced accuracy', fontsize=labelfontsize, color='k')
+# [t.set_color('w') for t in ax.yaxis.get_ticklabels()]
+
+ax.legend(fontsize=legendfontsize, ncol=1, loc='lower left')
+# ax.axhline(y=0.5, linestyle='--', color='k')
+ax.set_xlabel('')
+
+ax.legend(fontsize=legendfontsize, loc='lower left', title='Pain offer',
+          title_fontsize=legendfontsize)
+fig.tight_layout()
+fig.savefig(opj(outpath, 'forced_choice_acc_pain_usingnps.svg'),
+            dpi=600, transparent=True)

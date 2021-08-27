@@ -42,7 +42,7 @@ cold = current_palette[1]
 colc = current_palette[3]
 
 # Label size
-labelfontsize = 9
+labelfontsize = 7
 titlefontsize = np.round(labelfontsize*1.5)
 ticksfontsize = np.round(labelfontsize*0.8)
 legendfontsize = np.round(labelfontsize*0.8)
@@ -76,7 +76,7 @@ to_plot = {'x': [-46, -8, 8, 4,  6, 48],
 cmap = plotting.cm.cold_hot
 for axis, coord in to_plot.items():
     for c in coord:
-        fig, ax = plt.subplots(figsize=(1.5, 1.5))
+        fig, ax = plt.subplots(figsize=(1, 1))
         disp = plot_stat_map(moneymapfdr, cmap=cmap, colorbar=False,
                         bg_img=bgimg,
                         dim=-0.3,
@@ -94,7 +94,7 @@ for axis, coord in to_plot.items():
 
 
 # Plot a last random one to get the colorbar
-fig, ax = plt.subplots(figsize=(1.5, 1.5))
+fig, ax = plt.subplots(figsize=(1, 1))
 thr = np.min(np.abs(moneymapfdr.get_data()[moneymapfdr.get_data() != 0]))
 disp = plot_stat_map(moneymapfdr,
                         cmap=cmap, colorbar=True,
@@ -114,8 +114,79 @@ disp._colorbar_ax.set_ylabel('Z score', rotation=90, fontsize=labelfontsize,
                              labelpad=5)
 lab = disp._colorbar_ax.get_yticklabels()
 disp._colorbar_ax.set_yticklabels(lab, fontsize=ticksfontsize)
+disp._colorbar_ax.yaxis.set_tick_params(pad=-0.5)
 
 fig.savefig(opj(outpath, 'mvp_slices_slicescbar.svg'), dpi=600,
+        bbox_inches='tight', transparent=True)
+
+
+################################################################
+# Slices plot in striatum ROI
+###################################################################
+
+# Load corrected map
+money_unthr = load_img(opj(basepath, 'derivatives/mvpa/money_offer_level',
+                           'moneylevel_bootz.nii'))
+
+
+atlas_map = load_img(opj(basepath, 'external/fsl_striatum_atlas',
+                         'striatum-con-label-thr25-7sub-2mm.nii.gz'))
+
+# Resample to group_mask
+atlas_map = resample_to_img(atlas_map, group_mask, interpolation='nearest')
+atlas_mask = new_img_like(atlas_map, np.where(atlas_map.get_data() != 0, 1, 0))
+money_unthr_str = unmask(apply_mask(money_unthr, atlas_mask), atlas_mask)
+
+# PLot slices
+to_plot = {
+            # 'x': [],
+           'y': [6, 8, 10, 12, 14],
+        #    'z': []
+           }
+
+cmap = plotting.cm.cold_hot
+for axis, coord in to_plot.items():
+    for c in coord:
+        fig, ax = plt.subplots(figsize=(1, 1))
+        disp = plot_stat_map(money_unthr_str, cmap=cmap, colorbar=False,
+                        bg_img=bgimg,
+                        dim=-0.3,
+                        black_bg=False,
+                        display_mode=axis,
+                        axes=ax,
+                        vmax=7,
+                        cut_coords=(c,),
+                        alpha=1,
+                        annotate=False)
+        disp.annotate(size=ticksfontsize, left_right=False)
+        # disp.add_overlay(nsynth_mask_pm, cmap='binary_r', **{'alpha': 0.7})
+        fig.savefig(opj(outpath, 'mlevel_uncSTRROI_' + axis
+                        + str(c) + '.svg'),
+                    transparent=True, bbox_inches='tight', dpi=600)
+
+# Plot a last random one to get the colorbar
+fig, ax = plt.subplots(figsize=(1, 1))
+# thr = np.min(np.abs(painvsmoney.get_data()[painvsmoney.get_data() != 0]))
+disp = plot_stat_map(money_unthr_str,
+                        cmap=cmap, colorbar=True,
+                bg_img=bgimg,
+                dim=-0.3,
+                black_bg=False,
+                symmetric_cbar=True,
+                display_mode='y',
+                axes=ax,
+                # threshold=0,
+                vmax=7,
+                cut_coords=(12,),
+                alpha=1,
+                annotate=False)
+disp.annotate(size=ticksfontsize, left_right=False)
+disp._colorbar_ax.set_ylabel('Z score', rotation=90, fontsize=labelfontsize,
+                             labelpad=5)
+lab = disp._colorbar_ax.get_yticklabels()
+disp._colorbar_ax.set_yticklabels(lab, fontsize=ticksfontsize)
+
+fig.savefig(opj(outpath, 'mlevel_uncSTRROI_slicescbar.svg'), dpi=600,
         bbox_inches='tight', transparent=True)
 
 ###################################################################
@@ -125,7 +196,7 @@ fig.savefig(opj(outpath, 'mvp_slices_slicescbar.svg'), dpi=600,
 corr_money = pd.read_csv(opj(basepath, 'derivatives/mvpa',
                              'money_offer_level/moneylevel_cvstats.csv'))
 
-fig, ax = plt.subplots(figsize=(1.6, 2.2))
+fig, ax = plt.subplots(figsize=(1.5, 1.5))
 
 from scipy.stats import zscore
 corr_money['yfit_xval_z'] = zscore(corr_money['Y_pred'])
@@ -160,7 +231,7 @@ fig.savefig(opj(outpath,
 corr_money = pd.read_csv(opj(basepath, 'derivatives/mvpa',
                              'money_offer_level/moneylevel_cvstats.csv'))
 
-fig, ax = plt.subplots(figsize=(1.6, 2.2))
+fig, ax = plt.subplots(figsize=(1.5, 1.5))
 
 from scipy.stats import zscore
 corr_money['yfit_xval_z'] = zscore(corr_money['Y_pred'])
@@ -195,8 +266,7 @@ fig.savefig(opj(outpath,
 corr_pain = pd.read_csv(opj(basepath, 'derivatives/mvpa/pain_offer_level',
                              'painlevel_cvstats.csv'))
 
-
-fig, ax = plt.subplots(figsize=(1.6, 2.2))
+fig, ax = plt.subplots(figsize=(1.5, 1.5))
 
 corr_pain['Y_true'] = corr_pain['Y_true'].astype(int)
 
@@ -235,8 +305,7 @@ corr_shock = pd.read_csv(opj(basepath, 'derivatives/mvpa/shock_intensity_level',
                              'shocklevel_cvstats.csv'))
 
 
-
-fig, ax = plt.subplots(figsize=(1.6, 2.2))
+fig, ax = plt.subplots(figsize=(1.5, 1.5))
 
 corr_money['Y_true'] = corr_money['Y_true'].astype(int)
 
@@ -272,7 +341,7 @@ fig.savefig(opj(outpath,
 corr_money = pd.read_csv(opj(basepath,
                              'derivatives/mvpa/money_offer_level/moneylevel_cvstats.csv'))
 # Add the intercept to the data
-fig1, ax1 = plt.subplots(figsize=(1.6, 2.2))
+fig1, ax1 = plt.subplots(figsize=(1.5, 1.5))
 ax1.set_ylim((1, 10))
 ax1.set_xlim((1, 10))
 
@@ -288,7 +357,7 @@ ax1.set_xlabel('Money offer level', {'fontsize': labelfontsize})
 ax1.set_title('',
               {'fontsize': titlefontsize})
 
-ax1.set_ylabel('Cross-validated prediction',
+ax1.set_ylabel('Predicted level',
                {'fontsize': labelfontsize})
 ax1.set_xticks(range(1, 11))
 ax1.set_xticklabels(range(1, 11))
@@ -313,7 +382,7 @@ for s in corr_money.subject_id.unique():
     print(s)
     print(slope)
 # Add the intercept to the data
-fig1, ax1 = plt.subplots(figsize=(0.6, 2.2))
+fig1, ax1 = plt.subplots(figsize=(0.6, 1.5))
 
 
 pt.half_violinplot(y=slopes_pain, inner=None,
@@ -338,14 +407,13 @@ fig.tight_layout()
 fig1.savefig(opj(outpath, 'slopes_bysub_money.svg'), transparent=True)
 
 
-
 #######################################################################
 # ROC results
 #######################################################################
 
 roc_res = pd.read_csv(opj(basepath, 'derivatives/mvpa/money_offer_level/moneylevel_roc_results.csv'))
 
-fig, ax = plt.subplots(figsize=(1.6, 2.2))
+fig, ax = plt.subplots(figsize=(1.5, 1.5))
 x = np.arange(3)
 width = 0.5
 ax.bar(x=x[0]+width,
@@ -386,6 +454,7 @@ fig.savefig(opj(outpath, 'forced_choice_acc_moneyonly.svg'),
             dpi=600, transparent=True)
 
 
+
 ###################################################################
 # Calculate ROC accuracy between levels for pain images
 ###################################################################
@@ -422,7 +491,7 @@ pd.DataFrame(roc_results).to_csv(opj(outpath, 'mvp_on_pain' + '_roc_results.csv'
 #######################################################################
 
 roc_res = pd.DataFrame(roc_results)
-fig, ax = plt.subplots(figsize=(1.6, 2.2))
+fig, ax = plt.subplots(figsize=(1.5, 1.5))
 x = np.arange(3)
 width = 0.5
 ax.bar(x=x[0]+width,
@@ -462,247 +531,6 @@ ax.legend(fontsize=legendfontsize, loc='lower left', title='Pain offer',
 fig.tight_layout()
 fig.savefig(opj(outpath, 'forced_choice_acc_pain_usingmvp.svg'),
             dpi=600, transparent=True)
-
-
-
-
-###################################################################
-# Correlation with striatum networks
-###################################################################
-# Load atlas
-from scipy.stats import pearsonr
-
-atlas_map = load_img(opj(basepath, 'external/fsl_striatum_atlas',
-                         'striatum-con-label-thr25-7sub-2mm.nii.gz'))
-# Resample to group_mask
-atlas_map = resample_to_img(atlas_map, group_mask, interpolation='nearest')
-atlas_mask = new_img_like(atlas_map, np.where(atlas_map.get_data() != 0, 1, 0))
-atlas_map = apply_mask(atlas_map, atlas_mask)
-# Load PVP - MVP
-pvp = apply_mask(load_img(opj(basepath, 'derivatives/mvpa/pain_offer_level',
-                   'painlevel_weightsxvalmean.nii')), atlas_mask)
-mvp = apply_mask(load_img(opj(basepath, 'derivatives/mvpa/money_offer_level',
-                   'moneylevel_weightsxvalmean.nii')), atlas_mask)
-
-
-# Correlate with each network
-corr_coef_pain, corr_coef_money, corr_coef_diff = [], [], []
-
-for net in np.unique(atlas_map):
-        network_mask = np.where(atlas_map == net, 1, 0)
-        corr_coef_pain.append(pearsonr(network_mask, pvp)[0])
-        corr_coef_money.append(pearsonr(network_mask, mvp)[0])
-
-labels_7 = ['Limbic', 'Executive', 'Rostral\nmotor', 'Caudal\nmotor',
-             'Parietal', 'Occipital', 'Temporal']
-
-df_wedge = pd.DataFrame(data={'Networks': labels_7,
-                              'Pain pattern': corr_coef_pain,
-                              'Money pattern': corr_coef_money})
-df_wedge_m = df_wedge.melt(id_vars=['Networks'])
-
-N = len(df_wedge)
-theta = np.linspace(0, 2 * np.pi, N, endpoint=False)
-radii = np.array(df_wedge['Pain pattern'])
-radii2 = np.array(df_wedge['Money pattern'])
-width = 2 * np.pi / N
-
-fig = plt.figure(figsize=(2, 2))
-ax = fig.add_subplot(111, projection='polar')
-for t, r1, r2 in zip(theta, radii, radii2):
-  if r1 < 0:
-    color = '#003d5c'
-  else:
-    color = colp
-  r1 = np.abs(r1)
-#   bars = ax.bar(t, r1, width=width, bottom=0.0, alpha=1,
-#                 color=color, linewidth=0, edgecolor='k')
-  if r2 < 0:
-    color = '#00805c'
-  else:
-    color = colm
-  r2 = np.abs(r2)
-  bars = ax.bar(t, r2, width=width, bottom=0.0, alpha=1,
-                color=color, linewidth=0, edgecolor='k')
-
-ax.yaxis.set_ticks([0, 0.2])
-ax.yaxis.set_ticklabels(['', ''])
-ax.xaxis.set_ticks(theta+width/2)
-ax.yaxis.set_ticks([0.2])
-ax.yaxis.set_ticklabels(["|r| = 0.20"], size=ticksfontsize-2)
-# ax.tick_params(axis = "x", pad = 30)
-# ax.xaxis.grid(False)
-ax.xaxis.set_ticklabels([])
-
-
-counter = 0
-for t, o in zip(theta, np.ones_like(theta)):
-  deg_rot = np.rad2deg(t)
-  print(deg_rot)
-  if deg_rot > 180:
-    deg_rot =  360- deg_rot
-  ax.text(t, 0.27, labels_7[counter], horizontalalignment='center',
-          verticalalignment='center', rotation=0, fontsize=labelfontsize-2)
-  counter += 1
-
-fig.tight_layout()
-fig.savefig(opj(outpath, 'striatum_7network_pearson_wedge_mvp.svg'), dpi=600,
-            transparent=True)
-
-
-
-###################################################################
-# With cortical networks
-###################################################################
-from nilearn.image import resample_to_img
-atlas_map = load_img(opj(basepath, 'external/Yeo_JNeurophysiol11_MNI152',
-                         'Yeo2011_7Networks_MNI152_FreeSurferConformed1mm.nii.gz'))
-group_mask = load_img(opj(basepath, 'derivatives/group_mask.nii.gz'))
-
-# Resample to group_mask
-atlas_map = resample_to_img(atlas_map, group_mask, interpolation='nearest')
-
-# Remove voxles out of group mas
-atlas_map = unmask(apply_mask(atlas_map, group_mask), group_mask)
-# Mask
-atlas_mask = new_img_like(atlas_map, np.where(atlas_map.get_data() != 0, 1, 0))
-atlas_map = np.squeeze(apply_mask(atlas_map, atlas_mask))
-# Load PVP - MVP
-pvp = apply_mask(load_img(opj(basepath, 'derivatives/mvpa/pain_offer_level',
-                   'painlevel_weightsxvalmean.nii')), atlas_mask)
-mvp = apply_mask(load_img(opj(basepath, 'derivatives/mvpa/money_offer_level',
-                   'moneylevel_weightsxvalmean.nii')), atlas_mask)
-
-
-
-# Correlate with each network
-corr_coef_pain, corr_coef_money, corr_coef_diff = [], [], []
-
-for net in np.unique(atlas_map):
-        network_mask = np.where(atlas_map == net, 1, 0)
-        corr_coef_pain.append(pearsonr(network_mask, pvp)[0])
-        corr_coef_money.append(pearsonr(network_mask, mvp)[0])
-
-labels_7 = ['Visual', 'Somato-\nmotor', 'Dorsal\natt.', 'Ventral\natt.',
-             'Limbic', 'Frontoparietal', 'Default']
-
-df_wedge = pd.DataFrame(data={'Networks': labels_7,
-                              'Pain pattern': corr_coef_pain,
-                              'Money pattern': corr_coef_money})
-df_wedge_m = df_wedge.melt(id_vars=['Networks'])
-df_wedge_m = df_wedge_m.sort_values(['Networks'])
-
-
-
-N = len(df_wedge)
-theta = np.linspace(0, 2 * np.pi, N, endpoint=False)
-radii = np.array(df_wedge['Pain pattern'])
-radii2 = np.array(df_wedge['Money pattern'])
-width = 2 * np.pi / N
-
-
-fig = plt.figure(figsize=(2, 2))
-ax = fig.add_subplot(111, projection='polar')
-for t, r1, r2 in zip(theta, radii, radii2):
-  if r1 < 0:
-    color = '#003d5c'
-  else:
-    color = colp
-  r1 = np.abs(r1)
-#   bars = ax.bar(t, r1, width=width, bottom=0.0, alpha=1,
-#                 color=color, linewidth=0, edgecolor='k')
-  if r2 < 0:
-    color = '#00805c'
-  else:
-    color = colm
-  r2 = np.abs(r2)
-  bars = ax.bar(t, r2, width=width, bottom=0.0, alpha=1,
-                color=color, linewidth=0, edgecolor='k')
-
-ax.yaxis.set_ticks([0, 0.1])
-ax.yaxis.set_ticklabels(['', ''])
-ax.xaxis.set_ticks(theta+width/2)
-ax.yaxis.set_ticks([0.1])
-ax.yaxis.set_ticklabels(["|r| = 0.10"], size=ticksfontsize-2)
-# ax.tick_params(axis = "x", pad = 30)
-# ax.xaxis.grid(False)
-ax.xaxis.set_ticklabels([])
-
-
-counter = 0
-for t, o in zip(theta, np.ones_like(theta)):
-  deg_rot = np.rad2deg(t)
-  print(deg_rot)
-  if deg_rot > 180:
-    deg_rot =  360- deg_rot
-#   if labels_7[counter] == 'Ventral\nattention':
-#       offset = 0.145
-#   else:
-  offset = 0.13
-  ax.text(t, offset, labels_7[counter], horizontalalignment='center',
-          verticalalignment='center', rotation=0, fontsize=labelfontsize-2)
-  counter += 1
-
-fig.tight_layout()
-fig.savefig(opj(outpath, 'cortical_7network_pearson_wedge_pvp.svg'), dpi=600,
-            transparent=True)
-
-
-# Redo just for legend
-
-N = len(df_wedge)
-theta = np.linspace(0, 2 * np.pi, N, endpoint=False)
-radii = np.array(df_wedge['Pain pattern'])
-radii2 = np.array(df_wedge['Money pattern'])
-width = 2 * np.pi / N
-
-fig = plt.figure(figsize=(1.5, 1.5))
-ax = fig.add_subplot(111, projection='polar')
-for t, r1, r2 in zip(theta, radii, radii2):
-  if r1 < 0:
-    color = '#003d5c'
-  else:
-    color = colp
-  r1 = np.abs(r1)
-  bars = ax.bar(t, r1, width=width, bottom=0.0, alpha=1,
-                color=color, linewidth=0, edgecolor='k')
-  if r2 < 0:
-    color = '#00805c'
-  else:
-    color = colm
-  r2 = np.abs(r2)
-#   bars = ax.bar(t-0.225, r2, width=width/2, bottom=0.0, alpha=1,
-#                 color=color, linewidth=0, edgecolor='k')
-
-ax.yaxis.set_ticks([0, 0.1])
-ax.yaxis.set_ticklabels(['', ''])
-ax.xaxis.set_ticks(theta+width/2)
-# ax.tick_params(axis = "x", pad = 30)
-# ax.xaxis.grid(False)
-ax.xaxis.set_ticklabels([])
-
-counter = 0
-for t, o in zip(theta, np.ones_like(theta)):
-  deg_rot = np.rad2deg(t)
-  print(deg_rot)
-  if deg_rot > 180:
-    deg_rot =  360- deg_rot
-  ax.text(t, 0.13, labels_7[counter], horizontalalignment='center',
-          verticalalignment='center', rotation=0, fontsize=labelfontsize-3)
-  counter += 1
-
-legend_elements = [Patch(facecolor=colm, edgecolor=colm,
-                         label='Positive'),
-                   Patch(facecolor='#00805c', edgecolor='#00805c',
-                         label='Negative'),]
-ax.legend(handles=legend_elements, loc=(0.6, 1.05), ncol=1, handlelength=1.5,
-          labels=['Positive', 'Negative'], handletextpad=0.2,
-          fontsize=labelfontsize-3, columnspacing=0.4, frameon=True)
-
-# ax.set_title('Cortical networks', fontsize=titlefontsize-3)
-fig.savefig(opj(outpath, 'cortical_7network_pearson_wedge_pvp_legend.svg'), dpi=600,
-            transparent=True)
-
 
 #######################################################################
 # Plot univariate
@@ -792,3 +620,136 @@ plot_multi_supp(map_unthr,
                 name3='FWE',
                 title='Parametric effect of money offer level',
                 cmap=npl.cm.cold_hot)
+
+
+###################################################################
+# Other patterns
+###################################################################
+current_palette = sns.color_palette('colorblind', 10)
+
+# Shock pattern, NPS, SIIPS, PINES on pain and money
+fig, ax = plt.subplots(figsize=(1.6, 1.6))
+
+corr_money['Y_true'] = corr_money['Y_true'].astype(int)
+corr_money['sip_cv_cosine_z'] = zscore(corr_money['sip_cv_cosine'])
+
+corr_plot = corr_money.melt(id_vars=['Y_true', 'type'], value_vars=['sip_cv_cosine_z'])
+
+ax = sns.pointplot(corr_plot['Y_true'], corr_plot['value'], hue=corr_plot['variable'],
+                   scale=0.4, ci=68, errwidth=1, palette=['#de8f05'], legend=False)
+
+# Add labels
+ax.set_ylim(-0.6, 1)
+ax.set_title("", {'fontsize': titlefontsize})
+ax.set_xlabel("Money offer level", {'fontsize': labelfontsize})
+ax.set_ylabel("Pattern similarity",
+              {'fontsize': labelfontsize})
+
+# # Set legend
+legend = ax.legend(fontsize=legendfontsize, frameon=False, loc=(0, 0.6),
+                   handletextpad=0)
+for t, l in zip(legend.texts, ['Shock\nintensity\npattern', ""]):
+    t.set_text(l)
+ax.tick_params('both', labelsize=ticksfontsize)
+
+fig.tight_layout()
+
+fig.savefig(opj(outpath,
+                'pattern_expression_o1_lineplot_sip_onmoney.svg'), transparent=True)
+
+colc = current_palette[3]
+cole = current_palette[5]
+colf = current_palette[6]
+
+# Shock pattern, NPS, SIIPS, PINES on pain and money
+fig, ax = plt.subplots(figsize=(1.6, 1.6))
+
+corr_money['Y_true'] = corr_money['Y_true'].astype(int)
+corr_money['nps_cosine_z'] = zscore(corr_money['nps_cosine'])
+
+corr_plot = corr_money.melt(id_vars=['Y_true', 'type'], value_vars=['nps_cosine_z'])
+
+ax = sns.pointplot(corr_plot['Y_true'], corr_plot['value'], hue=corr_plot['variable'],
+                   scale=0.4, ci=68, errwidth=1, palette=[colc], legend=False)
+
+# Add labels
+ax.set_ylim(-0.6, 1)
+ax.set_title("", {'fontsize': titlefontsize})
+ax.set_xlabel("Money offer level", {'fontsize': labelfontsize})
+ax.set_ylabel("Pattern similarity",
+              {'fontsize': labelfontsize})
+
+# # Set legend
+legend = ax.legend(fontsize=legendfontsize, frameon=False, loc=(0, 0.8),
+                   handletextpad=0)
+for t, l in zip(legend.texts, ['NPS', ""]):
+    t.set_text(l)
+ax.tick_params('both', labelsize=ticksfontsize)
+
+fig.tight_layout()
+
+fig.savefig(opj(outpath,
+                'pattern_expression_o1_lineplot_nps_onmoney.svg'), transparent=True)
+
+
+# Shock pattern, NPS, SIIPS, PINES on pain and money
+fig, ax = plt.subplots(figsize=(1.6, 1.6))
+
+corr_money['Y_true'] = corr_money['Y_true'].astype(int)
+corr_money['siips_cosine_z'] = zscore(corr_money['siips_cosine'])
+
+corr_plot = corr_money.melt(id_vars=['Y_true', 'type'], value_vars=['siips_cosine_z'])
+
+ax = sns.pointplot(corr_plot['Y_true'], corr_plot['value'], hue=corr_plot['variable'],
+                   scale=0.4, ci=68, errwidth=1, palette=[cole], legend=False)
+
+# Add labels
+ax.set_ylim(-0.6, 1)
+ax.set_title("", {'fontsize': titlefontsize})
+ax.set_xlabel("Money offer level", {'fontsize': labelfontsize})
+ax.set_ylabel("Pattern similarity",
+              {'fontsize': labelfontsize})
+
+# # Set legend
+legend = ax.legend(fontsize=legendfontsize, frameon=False, loc=(0, 0.8),
+                   handletextpad=0)
+for t, l in zip(legend.texts, ['SIIPS', ""]):
+    t.set_text(l)
+ax.tick_params('both', labelsize=ticksfontsize)
+
+fig.tight_layout()
+
+fig.savefig(opj(outpath,
+                'pattern_expression_o1_lineplot_siips_onmoney.svg'), transparent=True)
+
+
+
+# Shock pattern, NPS, SIIPS, PINES on pain and money
+fig, ax = plt.subplots(figsize=(1.6, 1.6))
+
+corr_money['Y_true'] = corr_money['Y_true'].astype(int)
+corr_money['pines_cosine_z'] = zscore(corr_money['pines_cosine'])
+
+corr_plot = corr_money.melt(id_vars=['Y_true', 'type'], value_vars=['pines_cosine_z'])
+
+ax = sns.pointplot(corr_plot['Y_true'], corr_plot['value'], hue=corr_plot['variable'],
+                   scale=0.4, ci=68, errwidth=1, palette=[colf], legend=False)
+
+# Add labels
+ax.set_ylim(-0.6, 1)
+ax.set_title("", {'fontsize': titlefontsize})
+ax.set_xlabel("Money offer level", {'fontsize': labelfontsize})
+ax.set_ylabel("Pattern similarity",
+              {'fontsize': labelfontsize})
+
+# # Set legend
+legend = ax.legend(fontsize=legendfontsize, frameon=False, loc=(0, 0.8),
+                   handletextpad=0)
+for t, l in zip(legend.texts, ['PINES', ""]):
+    t.set_text(l)
+ax.tick_params('both', labelsize=ticksfontsize)
+
+fig.tight_layout()
+
+fig.savefig(opj(outpath,
+                'pattern_expression_o1_lineplot_pines_onmoney.svg'), transparent=True)
