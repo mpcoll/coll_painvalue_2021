@@ -23,14 +23,14 @@ if not os.path.exists(outpath):
 ###################################################################
 # Decision data
 dec_stats = pd.read_csv(opj(basepath, 'derivatives/mvpa/decision',
-                            'decision_stats.csv'))
+                            'decision_stats_out.csv'))
 
 # Remove trials with high vif, unanswered trials (duration == 5)
 dec_stats_clean = dec_stats[(dec_stats['vifs'] < 2)
                             & (dec_stats['duration'] < 5.0)
                             & (dec_stats['duration'] > 0.2)]
 
-perc_removed = (len(dec_stats)- len(dec_stats_clean))/len(dec_stats)
+
 
 ###################################################################
 # Set up CV prediction
@@ -118,6 +118,71 @@ model_out = dict(clf=clf, x=X, y=Y, name='painmoney')
 np.save(opj(outpath, 'model_painmoney.npy'), model_out)
 
 
+###################################################################
+# Predict choice using shock
+###################################################################
+
+X = np.asarray(dec_stats_clean['sip_cv_cosine']).reshape(-1, 1)
+Y = np.asarray(dec_stats_clean['accept']).astype(int)
+
+
+sip_bal_acc = cross_val_score(clf, X, Y, groups=dec_stats_clean['subject_id'],
+                          scoring=bal_acc, cv=cv)
+
+# Binomial test
+sip_pval = binom_test(x=[np.round(len(dec_stats_clean)*np.mean(sip_bal_acc)),
+              len(dec_stats_clean)-np.round(len(dec_stats_clean)*np.mean(sip_bal_acc))] )
+
+
+
+out['sip_bal_acc'] = np.mean(sip_bal_acc)
+out['sip_pval'] = sip_pval
+
+
+
+###################################################################
+# Predict choice using univariate 2nd level pain map
+###################################################################
+# Get data
+X = np.asarray(dec_stats_clean['unip_cv_cosine']).reshape(-1, 1)
+Y = np.asarray(dec_stats_clean['accept']).astype(int)
+
+# Cross val prediction
+unip_bal_acc = cross_val_score(clf, X, Y, groups=dec_stats_clean['subject_id'],
+                              scoring=bal_acc, cv=cv)
+
+# Binomial test
+unip_pval = binom_test(x=[np.round(len(dec_stats_clean)*np.mean(unip_bal_acc)),
+                         len(dec_stats_clean)-np.round(len(dec_stats_clean)*np.mean(unip_bal_acc))] )
+
+
+# Save data to
+out['unip_cv_bal_acc'] = np.mean(unip_bal_acc)
+out['unip_cv_pval'] = unip_pval
+
+
+###################################################################
+# Predict choice using univariate 2nd level money map
+###################################################################
+# Get data
+X = np.asarray(dec_stats_clean['unim_cv_cosine']).reshape(-1, 1)
+Y = np.asarray(dec_stats_clean['accept']).astype(int)
+
+# Cross val prediction
+unim_bal_acc = cross_val_score(clf, X, Y, groups=dec_stats_clean['subject_id'],
+                              scoring=bal_acc, cv=cv)
+
+# Binomial test
+unim_pval = binom_test(x=[np.round(len(dec_stats_clean)*np.mean(unim_bal_acc)),
+                         len(dec_stats_clean)-np.round(len(dec_stats_clean)*np.mean(unim_bal_acc))] )
+
+
+# Save data to
+out['unim_cv_bal_acc'] = np.mean(unim_bal_acc)
+out['unimc_cv_pval'] = unim_pval
+
+
+
 # ###################################################################
 # # Same but at the participant level
 # ###################################################################
@@ -172,6 +237,7 @@ out['pvp_vs_mvp_acc_sub_tval'], out['pvp_vs_mvp_acc_sub_pval'] = ttest_rel(np.as
 out = out.reset_index()
 out['subject_id'] = out['index']
 out.to_csv(opj(outpath, 'choice_prediction_results.csv'))
+
 
 
 # SAME PAINFIRST TRIALS ONLY FOR SUPP MAT

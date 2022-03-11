@@ -17,6 +17,7 @@ from tqdm import tqdm
 from joblib import Parallel, delayed
 from nltools.analysis import Roc
 from sklearn.metrics import make_scorer
+from nltools import Brain_Data
 
 ###################################################################
 # Paths
@@ -126,7 +127,9 @@ out = pd.DataFrame(data=dict(Y_true=Y, Y_pred=Y_pred, r_xval=[r]*len(Y),
                              r2_xval=[r2]*len(Y), subject_id=sub_ids_dat,
                              folds_test=folds_test,
                              r_folds=r_folds, r2_folds=r2_folds,
-                             rmse_folds=rmse_folds))
+                             rmse_folds=rmse_folds
+                             ))
+
 out.to_csv(opj(outpath, name + '_cvstats.csv'))
 
 
@@ -370,8 +373,6 @@ np.save(opj(outpath, name + '_nvox.npy'), n_vox)
 # Univariate with nltools
 ###################################################################
 
-from nltools import Brain_Data
-
 meta = pd.read_csv(opj(model_dir, 'metadata.csv'))
 
 # Get image in specified path
@@ -386,6 +387,14 @@ meta['imgpath'] = imgpath
 # KEep only pain images
 meta = meta[meta['painfirst'] == 1]
 
+sub_excl = ['sub-04', 'sub-08', 'sub-16',
+            'sub-22', 'sub-23', 'sub-29',
+            'sub-24', 'sub-30', 'sub-34',
+            'sub-71']
+
+meta = meta[~meta['subject_id'].isin(sub_excl)]
+
+
 # Subjects
 sub_ids_dat = np.asarray(meta['subject_id']).astype(object)
 
@@ -396,12 +405,13 @@ nldata = Brain_Data(list(meta['imgpath']), mask=group_mask, X=meta)
 
 # Univariate regression to predict level
 all_sub_betas = Brain_Data()
+all_subs = []
 for s in tqdm(meta['subject_id'].unique()):
     sdat = nldata[np.where(meta['subject_id'] == s)[0]]
     sdat.X = pd.DataFrame(data={'Intercept':np.ones(sdat.shape()[0]), name:sdat.X['level']})
     stats = sdat.regress()
-    statsno = sdat.regress()
     all_sub_betas = all_sub_betas.append(stats['beta'][1])
+    all_subs.append(s)
 
 # Threhsold and save
 t_stats = all_sub_betas.ttest(threshold_dict={'unc':.001})
@@ -413,3 +423,24 @@ t_stats['thr_t'].to_nifti().to_filename(opj(outpath, name + '_univariate_fdr05.n
 
 t_stats = all_sub_betas.ttest(threshold_dict={'holm-bonf':.05})
 t_stats['thr_t'].to_nifti().to_filename(opj(outpath, name + '_univariate_fwe05.nii'))
+
+
+
+# Cross-validated univariate beta maps for comparison with multivariate
+# Use same cv scheme as mvpa
+outer_cv = GroupKFold(n_splits=10).split(Y, groups=sub_ids_dat)
+uni_cv_maps = []
+for train, test in outer_cv:
+    subs_idx = [all_subs.index(np.unique(sub_ids_dat[train])[i])
+                for i in range(len(np.unique(sub_ids_dat[train])))]
+    uni_cv_maps.append(all_sub_betas[subs_idx].mean().to_nifti())
+
+
+concat_imgs(uni_cv_maps).to_filename(opj(outpath,
+                                          name + '_unviariate_betas_unthresholded_xval.nii.gz'))
+
+# Calculate correlation with mutlivariate pattern
+all_sub_betas.mean().data
+weights_xval_mean_level = apply_mask(load_img(opj(basepath,
+                                                  'derivatives/mvpa/pain_offer_level/painlevel_weightsxvalmean.nii')), group_mask)
+print(pearsonr(weights_xval_mean_level, t_stats['t'].data)[0])

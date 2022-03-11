@@ -14,7 +14,7 @@ import ptitprince as pt
 from nilearn.image import load_img
 from nilearn.masking import apply_mask, unmask
 from nltools.analysis import Roc
-from scipy.stats import zscore
+from scipy.stats import zscore, pearsonr
 from nilearn.image import resample_to_img
 from matplotlib.patches import Patch
 
@@ -753,3 +753,40 @@ fig.tight_layout()
 
 fig.savefig(opj(outpath,
                 'pattern_expression_o1_lineplot_pines_onmoney.svg'), transparent=True)
+
+
+
+
+###################################################################
+# Relationship between univariate and multivariate
+###################################################################
+uni_unthr = apply_mask(load_img(opj(basepath, 'derivatives/mvpa/money_offer_level',
+                           'moneylevel_univariate_unthresholded.nii')), group_mask)
+mvp = apply_mask(load_img(opj(basepath, 'derivatives/mvpa/money_offer_level/moneylevel_weightsxvalmean.nii')), group_mask)
+print(pearsonr(uni_unthr, mvp)[0])
+
+
+# Supplementary plot
+fig1, ax1 = plt.subplots(figsize=(1.5, 1.5))
+sns.regplot(zscore(uni_unthr), zscore(mvp),
+            color=colm,
+            scatter_kws={"s": 0.2, 'rasterized': True,
+                         'alpha': 0.05, 'color':'gray'},
+            line_kws={'linewidth': 1})
+ax1.set_ylabel('Univariate betas', {'fontsize': labelfontsize})
+
+ax1.set_title('',
+              {'fontsize': titlefontsize})
+
+ax1.set_xlabel('MVP weights',
+               {'fontsize': labelfontsize})
+
+ax1.tick_params(axis='both', labelsize=ticksfontsize)
+
+
+ax1.set_ylim((-6, 5))
+ax1.set_xlim((-6, 5))
+
+fig1.tight_layout()
+fig1.savefig(opj(outpath, 'mvp_vs_uni.svg'),
+             transparent=True, dpi=800)

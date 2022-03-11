@@ -16,8 +16,6 @@ from nltools.stats import fdr
 from tqdm import tqdm
 from joblib import Parallel, delayed
 from nltools.analysis import Roc
-from nilearn.plotting import view_img
-from nilearn.decoding.searchlight import search_light
 
 
 ###################################################################

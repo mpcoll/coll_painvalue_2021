@@ -73,10 +73,9 @@ Offer 1 pain level
 ```
 ./code/mvpa/pain_level.py
 ```
-
 Offer 1 money level
 ```
-./code/mvpa/money_level.py 
+./code/mvpa/money_level.py
 ```
 Shock level
 ```
@@ -149,4 +148,21 @@ Apply pattern and figure for risk dataset
 ```
 ```
 ./code/figures/figures_decision.py
+```
+
+## Run additional supplementary analyses
+Computational model and individual differences
+```
+./code/beahvioural/computational.py
+```
+Note that there are no Matlab kernels in the container so the Matlab script
+should be executed locally. The VBA toolbox is available at https://mbb-team.github.io/VBA-toolbox/
+```
+./code/beahvioural/vba_model_comparison.m
+```
+```
+./code/mvpa/indiff_computational_suppmat.py
+```
+```
+./code/mvpa/pain_complevel_suppmat.py
 ```

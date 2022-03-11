@@ -8,6 +8,7 @@ import numpy as np
 import re
 import sys
 from scipy.ndimage.filters import gaussian_filter
+import statsmodels.api as sm
 
 
 ###################################################################
@@ -32,7 +33,7 @@ if not os.path.exists(outfigdir):
 
 # Get participants
 r = re.compile('.*sub-*')
-sub = list(filter(r.match, os.listdir(sourcedir)))
+subs = list(filter(r.match, os.listdir(sourcedir)))
 
 
 ###################################################################
@@ -76,6 +77,7 @@ for s in subs:
 # Put in a smaller dataframe to get rid of unused columns
 df = pd.DataFrame()
 df['sub'] = data['sub']
+df['subject_id'] = data['sub'].copy()
 df['rt'] = data['offer2_duration']*1000
 df['accept'] = data['accept']
 df['pain_level'] = data['pain_level']
@@ -84,6 +86,9 @@ df['pain_intensity'] = data['intensity_level']
 df['money_level'] = data['money_level']
 df['money_rank'] = round((data['money_level']+1.11)/1.11)
 df['run'] = data['run']
+df['painfirst'] = data['painfirst']
+df_pfirst = df[df['painfirst'] == 1]
+df_mfirst = df[df['painfirst'] == 0]
 
 # Remove unanswered trials
 df = df[df['rt'] < 5000]
@@ -150,6 +155,110 @@ fig.tight_layout()
 fig.savefig(opj(outfigdir, 'behavioural_matrices_accept.svg'), dpi=600,
             transparent=True, bbox_inches='tight')
 
+
+fig = plt.figure(figsize=(2.5, 2))
+
+# Acceptance across offers
+
+heat_acc = df[['accept', 'money_rank', 'pain_rank']]
+heat_acc['accept'] = heat_acc['accept']*100
+# Make a table
+
+heat_acc = heat_acc.pivot_table('accept', 'money_rank', 'pain_rank',
+                                aggfunc=np.mean)
+
+heat_acc_smooth = gaussian_filter(heat_acc, sigma=1)
+ax = sns.heatmap(heat_acc_smooth, cmap=cmap2, annot=False)
+ax.figure.axes[-1].set_ylabel('% Accept',
+                              size=colorbarfontsize)
+ax.set_title("Acceptance", {'fontsize': titlefontsize})
+ax.set_xlabel("Pain rank", {'fontsize': labelfontsize})
+ax.set_xticklabels(ax.get_xticklabels(), rotation=0, fontsize=labelfontsize)
+ax.set_ylabel("Money rank", {'fontsize': labelfontsize})
+ax.set_yticklabels([int(r) for r in range(1, 11)], {'fontsize': ticksfontsize},
+                   va='center')
+ax.invert_yaxis()
+ax.invert_xaxis()
+
+# ax.text(-1.4, -0.4, 'C', fontsize=letterfontsize, fontweight='bold')
+ax.set_xticklabels(list(range(1, 11)), {'fontsize': ticksfontsize})
+cbar = ax.collections[0].colorbar
+cbar.ax.tick_params(labelsize=colorbarfontsize)
+# ax.text(-0.2, 1.02, 'A', transform=ax.transAxes,
+#         size=letterfontsize, weight='normal')
+fig.tight_layout()
+fig.savefig(opj(outfigdir, 'behavioural_matrices_accept.svg'), dpi=600,
+            transparent=True, bbox_inches='tight')
+
+
+fig = plt.figure(figsize=(2.5, 2))
+
+# Acceptance across offers
+
+heat_acc = df_pfirst[['accept', 'money_rank', 'pain_rank']]
+heat_acc['accept'] = heat_acc['accept']*100
+# Make a table
+
+heat_acc = heat_acc.pivot_table('accept', 'money_rank', 'pain_rank',
+                                aggfunc=np.mean)
+
+heat_acc_smooth = gaussian_filter(heat_acc, sigma=1)
+ax = sns.heatmap(heat_acc_smooth, cmap=cmap2, annot=False)
+ax.figure.axes[-1].set_ylabel('% Accept',
+                              size=colorbarfontsize)
+ax.set_title("Acceptance - Pain first", {'fontsize': titlefontsize})
+ax.set_xlabel("Pain rank", {'fontsize': labelfontsize})
+ax.set_xticklabels(ax.get_xticklabels(), rotation=0, fontsize=labelfontsize)
+ax.set_ylabel("Money rank", {'fontsize': labelfontsize})
+ax.set_yticklabels([int(r) for r in range(1, 11)], {'fontsize': ticksfontsize},
+                   va='center')
+ax.invert_yaxis()
+ax.invert_xaxis()
+
+# ax.text(-1.4, -0.4, 'C', fontsize=letterfontsize, fontweight='bold')
+ax.set_xticklabels(list(range(1, 11)), {'fontsize': ticksfontsize})
+cbar = ax.collections[0].colorbar
+cbar.ax.tick_params(labelsize=colorbarfontsize)
+# ax.text(-0.2, 1.02, 'A', transform=ax.transAxes,
+#         size=letterfontsize, weight='normal')
+fig.tight_layout()
+fig.savefig(opj(outfigdir, 'behavioural_matrices_accept_pfirst.svg'), dpi=600,
+            transparent=True, bbox_inches='tight')
+
+fig = plt.figure(figsize=(2.5, 2))
+
+# Acceptance across offers
+
+heat_acc = df_mfirst[['accept', 'money_rank', 'pain_rank']]
+heat_acc['accept'] = heat_acc['accept']*100
+# Make a table
+
+heat_acc = heat_acc.pivot_table('accept', 'money_rank', 'pain_rank',
+                                aggfunc=np.mean)
+
+heat_acc_smooth = gaussian_filter(heat_acc, sigma=1)
+ax = sns.heatmap(heat_acc_smooth, cmap=cmap2, annot=False)
+ax.figure.axes[-1].set_ylabel('% Accept',
+                              size=colorbarfontsize)
+ax.set_title("Acceptance - Money first", {'fontsize': titlefontsize})
+ax.set_xlabel("Pain rank", {'fontsize': labelfontsize})
+ax.set_xticklabels(ax.get_xticklabels(), rotation=0, fontsize=labelfontsize)
+ax.set_ylabel("Money rank", {'fontsize': labelfontsize})
+ax.set_yticklabels([int(r) for r in range(1, 11)], {'fontsize': ticksfontsize},
+                   va='center')
+ax.invert_yaxis()
+ax.invert_xaxis()
+
+# ax.text(-1.4, -0.4, 'C', fontsize=letterfontsize, fontweight='bold')
+ax.set_xticklabels(list(range(1, 11)), {'fontsize': ticksfontsize})
+cbar = ax.collections[0].colorbar
+cbar.ax.tick_params(labelsize=colorbarfontsize)
+# ax.text(-0.2, 1.02, 'A', transform=ax.transAxes,
+#         size=letterfontsize, weight='normal')
+fig.tight_layout()
+fig.savefig(opj(outfigdir, 'behavioural_matrices_accept_mfirst.svg'), dpi=600,
+            transparent=True, bbox_inches='tight')
+
 # Response time across offers
 fig = plt.figure(figsize=(2.5, 2))
 
@@ -187,25 +296,25 @@ fig.tight_layout()
 fig.savefig(opj(outfigdir, 'behavioural_matrices_rt.svg'), dpi=600,
             transparent=True)
 
-# Choice difficulty
+
+# Response time across offers
 fig = plt.figure(figsize=(2.5, 2))
-df.loc[:, 'choicediff'] = 10 - np.abs(df['money_rank']-df['pain_rank'])
 
 # keep only relevant columns
-heat_cdiff = df[['choicediff', 'money_rank', 'pain_rank']]
+heat_rt = df_pfirst[['rt', 'money_rank', 'pain_rank']]
 # Make a table
-heat_cdiff = heat_cdiff.pivot_table('choicediff', 'money_rank', 'pain_rank',
+heat_rt = heat_rt.pivot_table('rt', 'money_rank', 'pain_rank',
                               aggfunc=np.mean)
-heat_cdiff_smooth = gaussian_filter(heat_cdiff, sigma=1)
+heat_rt_smooth = gaussian_filter(heat_rt, sigma=1)
 
 # count = count + 1
 # fig.add_subplot(4, 2, count)
-ax = sns.heatmap(heat_cdiff_smooth, cmap=cmap1)
-ax.figure.axes[-1].set_ylabel('Choice difficulty',
+ax = sns.heatmap(heat_rt_smooth, cmap=cmap1)
+ax.figure.axes[-1].set_ylabel('Response time (ms)',
                               size=colorbarfontsize)
 
 # moneyticks = [str(int(np.floor(float(m)))) for m in moneyticks]
-ax.set_title("Choice difficulty", {'fontsize': titlefontsize})
+ax.set_title("Response time - Pain first", {'fontsize': titlefontsize})
 ax.set_xlabel("Pain rank", {'fontsize': labelfontsize})
 ax.set_xticklabels(ax.get_xticklabels(), rotation=0, fontsize=labelfontsize)
 ax.set_ylabel("Money rank", {'fontsize': labelfontsize})
@@ -217,46 +326,102 @@ ax.invert_yaxis()
 ax.invert_xaxis()
 cbar.ax.tick_params(labelsize=colorbarfontsize)
 
+# ax.text(-1.4, -0.4, 'D', fontsize=letterfontsize, fontweight='bold')
+
+# ax.text(-0.2, 1.02, 'B', transform=ax.transAxes,
+#         size=letterfontsize, weight='normal')
 fig.tight_layout()
-fig.savefig(opj(outfigdir, 'behavioural_matrices_choicediff.svg'), dpi=600,
+fig.savefig(opj(outfigdir, 'behavioural_matrices_rt_pfirst.svg'), dpi=600,
             transparent=True)
 
-def print_stats(datain, name):
-    print(name)
-    print('N: ' + str(len(datain)))
-    print('mean: ' + str(np.mean(datain)))
-    print('min: ' + str(np.min(datain)))
-    print('max: ' + str(np.max(datain)))
-    print('std: ' + str(np.std(datain)))
 
-    out = [name
-           + '\n N: ' + str(len(datain))
-           + '\n mean: ' + str(np.mean(datain))
-           + '\n min: ' + str(np.min(datain))
-           + '\n max: ' + str(np.max(datain))
-           + '\n std: ' + str(np.std(datain))]
+# Response time across offers
+fig = plt.figure(figsize=(2.5, 2))
 
-    return out[0]
+# keep only relevant columns
+heat_rt = df_mfirst[['rt', 'money_rank', 'pain_rank']]
+# Make a table
+heat_rt = heat_rt.pivot_table('rt', 'money_rank', 'pain_rank',
+                              aggfunc=np.mean)
+heat_rt_smooth = gaussian_filter(heat_rt, sigma=1)
+
+# count = count + 1
+# fig.add_subplot(4, 2, count)
+ax = sns.heatmap(heat_rt_smooth, cmap=cmap1)
+ax.figure.axes[-1].set_ylabel('Response time (ms)',
+                              size=colorbarfontsize)
+
+# moneyticks = [str(int(np.floor(float(m)))) for m in moneyticks]
+ax.set_title("Response time - Money first", {'fontsize': titlefontsize})
+ax.set_xlabel("Pain rank", {'fontsize': labelfontsize})
+ax.set_xticklabels(ax.get_xticklabels(), rotation=0, fontsize=labelfontsize)
+ax.set_ylabel("Money rank", {'fontsize': labelfontsize})
+ax.set_yticklabels([int(r) for r in range(1, 11)], {'fontsize': ticksfontsize},
+                   va='center')
+ax.set_xticklabels(list(range(1, 11)), {'fontsize': ticksfontsize})
+cbar = ax.collections[0].colorbar
+ax.invert_yaxis()
+ax.invert_xaxis()
+cbar.ax.tick_params(labelsize=colorbarfontsize)
+
+# ax.text(-1.4, -0.4, 'D', fontsize=letterfontsize, fontweight='bold')
+
+# ax.text(-0.2, 1.02, 'B', transform=ax.transAxes,
+#         size=letterfontsize, weight='normal')
+fig.tight_layout()
+fig.savefig(opj(outfigdir, 'behavioural_matrices_rt_mfirst.svg'), dpi=600,
+            transparent=True)
+
+df = df.reset_index()
+df.to_csv(opj(outdir, 'behavioural_data.csv'))
 
 
-############################################
-# Print text file for results in manuscript
-############################################
 
-file1 = open(opj(outfigdir, "behavioural_results.txt"), "w")
-file1.write("Demographics \n")
-file1.write(print_stats(demo.age, 'Age'))
-file1.write('\nN males ' + str(np.sum(demo.is_male)))
-file1.write("\nBehaviour\n")
-file1.write(print_stats(acc, 'Acceptance'))
-# Average response time by part
-rtavg = []
-for p in list(set(df['sub'])):
-    dffpart = df[df['sub'] == p]
-    rtavg.append(np.mean(dffpart.rt))
-file1.write(print_stats(rtavg, '\nResponse time'))
-file1.close()
+for sub in df['sub'].unique():
+    subdat = df[df['sub'] == sub]
+
+    # Get weights on decision using logistic regression
+    log_reg = sm.Logit(np.asarray(subdat['accept']),
+                       np.asarray(subdat[['pain_rank', 'money_rank']])).fit()
+
+    # Add to dataframe
+    df.loc[df["sub"] == sub, "coef_pain"] = log_reg.params[0]
+    df.loc[df["sub"] == sub, "coef_money"] = log_reg.params[1]
+
+   # Get weights on rt using linear regression
+    lin_reg = sm.OLS(np.asarray(subdat['rt']),
+                     np.asarray(subdat[['pain_rank', 'money_rank']])).fit()
+
+
+    # Add to dataframe
+    df.loc[df["sub"] == sub, "coef_pain_rt"] = lin_reg.params[0]
+    df.loc[df["sub"] == sub, "coef_money_rt"] = lin_reg.params[1]
+
+
+    subdat_acc = subdat[subdat['accept'] == 1]
+   # Get weights on rt using linear regression
+    lin_reg = sm.OLS(np.asarray(subdat_acc['rt']),
+                     np.asarray(subdat_acc[['pain_rank', 'money_rank']])).fit()
+
+
+    # Add to dataframe
+    df.loc[df["sub"] == sub, "coef_pain_rt_acc"] = lin_reg.params[0]
+    df.loc[df["sub"] == sub, "coef_money_rt_acc"] = lin_reg.params[1]
+
+
+    subdat_rej = subdat[subdat['accept'] == 0]
+
+   # Get weights on rt using linear regression
+    lin_reg = sm.OLS(np.asarray(subdat_rej['rt']),
+                     np.asarray(subdat_rej[['pain_rank', 'money_rank']])).fit()
+
+
+    # Add to dataframe
+    df.loc[df["sub"] == sub, "coef_pain_rt_rej"] = lin_reg.params[0]
+    df.loc[df["sub"] == sub, "coef_money_rt_rej"] = lin_reg.params[1]
 
 
 # Save for R models
 df.to_csv(opj(outdir, 'behavioural_data.csv'))
+df.groupby('subject_id').mean().reset_index().to_csv(opj(outdir,
+                                                  'behavioural_data_wide.csv'))

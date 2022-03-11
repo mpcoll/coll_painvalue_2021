@@ -28,7 +28,6 @@ group_mask = load_img(opj(basepath, 'derivatives/group_mask.nii.gz'))
 print("Loading data...")
 
 meta = pd.read_csv(opj(model_dir, 'metadata.csv'))
-# Fix this at some point
 
 imgpath = []
 for ii in meta['imgpathz']:

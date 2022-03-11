@@ -1,11 +1,10 @@
-from nilearn.image import load_img, new_img_like, concat_imgs
+from nilearn.image import load_img, new_img_like
 import os
 from os.path import join as opj
 import numpy as np
 import pandas as pd
 from nilearn.plotting import view_img, plot_stat_map
 from nilearn import plotting
-from nilearn.regions import connected_regions
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
@@ -14,7 +13,7 @@ from nilearn.image import load_img, resample_to_img, new_img_like
 from nilearn.masking import apply_mask, unmask
 from scipy.stats import zscore
 from nltools.analysis import Roc
-from scipy.stats import pearsonr, zscore, spearmanr
+from scipy.stats import pearsonr, zscore
 from matplotlib.patches import Patch
 from scipy.stats import binom_test
 import matplotlib.lines as mlines
@@ -1730,3 +1729,37 @@ ax.legend(fontsize=legendfontsize, loc='lower left', title='Pain offer',
 fig.tight_layout()
 fig.savefig(opj(outpath, 'forced_choice_acc_pain_usingnps.svg'),
             dpi=600, transparent=True)
+
+
+###################################################################
+# Relationship between univariate and multivariate
+###################################################################
+uni_unthr = apply_mask(load_img(opj(basepath, 'derivatives/mvpa/pain_offer_level',
+                           'painlevel_univariate_unthresholded.nii')), group_mask)
+mvp = apply_mask(load_img(opj(basepath, 'derivatives/mvpa/pain_offer_level/painlevel_weightsxvalmean.nii')), group_mask)
+print(pearsonr(uni_unthr, mvp)[0])
+
+# Supplementary plot
+fig1, ax1 = plt.subplots(figsize=(1.5, 1.5))
+sns.regplot(zscore(uni_unthr), zscore(mvp),
+            color=colp,
+            scatter_kws={"s": 0.2, 'rasterized': True,
+                         'alpha': 0.05, 'color':'gray'},
+            line_kws={'linewidth': 1})
+ax1.set_ylabel('Univariate betas', {'fontsize': labelfontsize})
+
+ax1.set_title('',
+              {'fontsize': titlefontsize})
+
+ax1.set_xlabel('PVP weights',
+               {'fontsize': labelfontsize})
+
+ax1.tick_params(axis='both', labelsize=ticksfontsize)
+
+
+ax1.set_ylim((-6, 5))
+ax1.set_xlim((-6, 5))
+
+fig1.tight_layout()
+fig1.savefig(opj(outpath, 'pvp_vs_uni.svg'),
+             transparent=True, dpi=800)

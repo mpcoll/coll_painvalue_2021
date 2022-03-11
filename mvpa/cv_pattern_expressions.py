@@ -1,16 +1,20 @@
-from nilearn.image import load_img, new_img_like, concat_imgs, resample_to_img
-import os
+from nilearn.image import load_img, resample_to_img
 from os.path import join as opj
 import numpy as np
 import pandas as pd
 from nilearn.masking import apply_mask
 from scipy.spatial.distance import cosine
-import seaborn as sns
 
 basepath = '/data'
 
 group_mask = load_img(opj(basepath, 'derivatives/group_mask.nii.gz'))
 
+widestats = pd.read_csv(opj(basepath, 'derivatives/behavioural/behavioural_data_wide.csv'))
+widestats['accept_avg'] = widestats['accept']
+widestats['rt_avg'] = widestats['rt']
+varnames = ['coef_pain', 'accept_avg', 'rt_avg', 'coef_money', 'coef_pain_rt',
+            'coef_money_rt', 'coef_pain_rt_acc', 'coef_pain_rt_rej',
+            'coef_money_rt_acc', 'coef_money_rt_rej']
 ###################################################################
 # Helper function
 ###################################################################
@@ -74,6 +78,28 @@ def pattern_expression_nocv(dat, pattern, stats, name):
     stats[name + '_cosine'] = cosim
 
     return stats
+
+
+
+def add_wide_data(longstats, widestats, varnames):
+    """Add wide data to long data frames
+
+    Args:
+        longstats (pd): long dataframe
+        widestats(pd): wide dataframe
+        varnames (list): varnames to add to long
+
+    Returns:
+        longstats : stats with added variables from widestats
+    """
+    for v in varnames:
+        longstats[v] = 9999
+        for sub in widestats['subject_id'].unique():
+            longstats.set_value(np.where(sub == longstats['subject_id'])[0],
+                                v,
+                                np.asarray(widestats[sub == widestats['subject_id']][v]))
+
+    return longstats
 
 
 ###################################################################
@@ -174,6 +200,34 @@ ant_stats = pattern_expression_cv(ant_dat, antp, ant_stats, ant_stats, 'antp_cv'
 dec_stats = pattern_expression_cv(dec_dat, antp, ant_stats, dec_stats, 'antp_cv')
 
 
+###################################################################
+# Apply univariate pain pattern
+###################################################################
+
+unip_p = apply_mask(load_img(opj(basepath, 'derivatives/mvpa/pain_offer_level',
+                   'painlevel_unviariate_unthresholded_xval.nii.gz')), group_mask)
+
+pvp_stats = pattern_expression_cv(pvp_dat, unip_p, pvp_stats, pvp_stats, 'unip_cv')
+mvp_stats = pattern_expression_cv(mvp_dat, unip_p, pvp_stats, mvp_stats, 'unip_cv')
+si_stats = pattern_expression_cv(si_dat, unip_p, pvp_stats, si_stats, 'unip_cv')
+ant_stats = pattern_expression_cv(ant_dat, unip_p, pvp_stats, ant_stats, 'unip_cv')
+dec_stats = pattern_expression_cv(dec_dat, unip_p, pvp_stats, dec_stats, 'unip_cv')
+
+
+###################################################################
+# Apply univariate money pattern
+###################################################################
+
+unim_p = apply_mask(load_img(opj(basepath, 'derivatives/mvpa/money_offer_level',
+                   'moneylevel_unviariate_unthresholded_xval.nii.gz')), group_mask)
+
+pvp_stats = pattern_expression_cv(pvp_dat, unim_p, mvp_stats, pvp_stats, 'unim_cv')
+mvp_stats = pattern_expression_cv(mvp_dat, unim_p, mvp_stats, mvp_stats, 'unim_cv')
+si_stats = pattern_expression_cv(si_dat, unim_p, mvp_stats, si_stats, 'unim_cv')
+ant_stats = pattern_expression_cv(ant_dat, unim_p, mvp_stats, ant_stats, 'unim_cv')
+dec_stats = pattern_expression_cv(dec_dat, unim_p, mvp_stats, dec_stats, 'unim_cv')
+
+
 # ###################################################################
 # # Apply external patterns
 # ###################################################################
@@ -199,6 +253,53 @@ for name, path in other_maps.items():
     ant_stats = pattern_expression_nocv(ant_dat, pattern, ant_stats, name)
 
 ###################################################################
+# Add wide data
+###################################################################
+
+pvp_stats = add_wide_data(pvp_stats, widestats, varnames)
+mvp_stats = add_wide_data(mvp_stats, widestats, varnames)
+si_stats = add_wide_data(si_stats, widestats, varnames)
+dec_stats = add_wide_data(dec_stats, widestats, varnames)
+ant_stats = add_wide_data(ant_stats, widestats, varnames)
+
+###################################################################
+# Add computational estimates
+###################################################################
+
+# PVP
+comp_data = pd.read_csv(opj(basepath, 'derivatives', 'behavioural',
+                        'behavioural_with_compestimates.csv')).groupby(['sub',
+                                                                         'pain_rank']).mean().reset_index()
+for sub in pvp_stats['subject_id'].unique():
+    sub_dat = comp_data[comp_data['sub'] == sub]
+    for plev in sub_dat['pain_rank']:
+        row = np.where((pvp_stats['subject_id'] == sub) & (pvp_stats['Y_true'] == plev))[0][0]
+        pvp_stats.set_value(row, 'sv_pain', np.asarray(sub_dat[sub_dat['pain_level'] == plev]['sv_pain'])[0])
+        pvp_stats.set_value(row, 'k_pain', np.asarray(sub_dat[sub_dat['pain_level'] == plev]['k_pain'])[0])
+        pvp_stats.set_value(row, 'sv_both', np.asarray(sub_dat[sub_dat['pain_level'] == plev]['sv_both'])[0])
+
+
+# Decision
+comp_data = pd.read_csv(opj(basepath, 'derivatives', 'behavioural',
+                        'behavioural_with_compestimates.csv'))
+
+dec_stats['trials'] = dec_stats['trials'] + 20*np.asarray(dec_stats['run']-1)
+dec_stats = dec_stats[(dec_stats['duration'] < 5.0)
+                            & (dec_stats['duration'] > 0.2)]
+
+new_dec_stats = []
+for sub in dec_stats['subject_id'].unique():
+    sub_dat = comp_data[comp_data['sub'] == sub].reset_index()
+    sub_dec_stats = dec_stats[dec_stats['subject_id'] == sub].reset_index()
+    assert (np.asarray(sub_dat['trials']) == np.asarray(sub_dec_stats['trials'])).all()
+    sub_dec_stats['k_pain'] = np.asarray(sub_dat['k_pain'])
+    sub_dec_stats['sv_pain'] = np.asarray(sub_dat['sv_pain'])
+    sub_dec_stats['sv_both'] = np.asarray(sub_dat['sv_both'])
+    new_dec_stats.append(sub_dec_stats)
+dec_stats = pd.concat(new_dec_stats).reset_index()
+dec_stats = dec_stats.loc[:, ~dec_stats.columns.str.contains('^Unnamed')]
+
+###################################################################
 # Save all
 ###################################################################
 
@@ -208,7 +309,7 @@ mvp_stats.to_csv(opj(basepath, 'derivatives/mvpa/money_offer_level',
                      'moneylevel_cvstats.csv'))
 si_stats.to_csv(opj(basepath, 'derivatives/mvpa/shock_intensity_level',
                     'shocklevel_cvstats.csv'))
-dec_stats.to_csv(opj(basepath, 'derivatives/mvpa/decision', 'decision_stats.csv'))
+dec_stats.to_csv(opj(basepath, 'derivatives/mvpa/decision', 'decision_stats_out.csv'))
 
 ant_stats.to_csv(opj(basepath, 'derivatives/mvpa/anticipation_level',
                      'anticipation_cvstats.csv'))

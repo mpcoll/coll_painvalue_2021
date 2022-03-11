@@ -60,7 +60,7 @@ group_mask = load_img(opj(basepath, 'derivatives/group_mask.nii.gz'))
 ###################################################################
 
 # Load corrected map
-painvsmoney = load_img(opj(basepath, 'derivatives/mvpa/searchlights/sl_crosspainmoney_wb_new',
+painvsmoney = load_img(opj(basepath, 'derivatives/mvpa/searchlights/sl_crosspainmoney',
                            'sl_crosspm_scores_fwe05.nii'))
 view_img(painvsmoney)
 
