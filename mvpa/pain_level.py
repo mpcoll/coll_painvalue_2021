@@ -387,13 +387,6 @@ meta['imgpath'] = imgpath
 # KEep only pain images
 meta = meta[meta['painfirst'] == 1]
 
-sub_excl = ['sub-04', 'sub-08', 'sub-16',
-            'sub-22', 'sub-23', 'sub-29',
-            'sub-24', 'sub-30', 'sub-34',
-            'sub-71']
-
-meta = meta[~meta['subject_id'].isin(sub_excl)]
-
 
 # Subjects
 sub_ids_dat = np.asarray(meta['subject_id']).astype(object)
